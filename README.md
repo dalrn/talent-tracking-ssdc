@@ -227,17 +227,8 @@ Apa kondisi umum data ini. Apa temuan terbesar. Apa yang paling mengkhawatirkan.
 ### Bentuk data
 | File | Baris | Kolom | Sesuai dokumentasi? |
 
-### Value counts semua kolom kategorikal
-(tempel lengkap — jangan diringkas)
-
-### Integritas FK
-| Relasi | Total | Orphan | % |
-
 ### Kontradiksi & anomali
 (daftar konkret, dengan jumlah baris)
-
-### Nilai di luar dokumentasi
-(kolom mana, nilai apa, berapa banyak)
 
 ### Pertanyaan terbuka untuk meeting
 1. ...

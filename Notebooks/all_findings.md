@@ -1,0 +1,1 @@
+[RANGKUMAN HAL HAL PENTING](https://docs.google.com/document/d/1lEB1n_cz_73g1os-FOC59KSsdM_KX5DwlgndEWRzOog/edit?usp=sharing)
