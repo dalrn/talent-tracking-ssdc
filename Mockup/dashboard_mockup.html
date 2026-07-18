@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalentTrack CDC: Mockup Dashboard SSDC 2026</title>
+<style>
+  :root {
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --s1: #2a78d6;
+    --s2: #008300;
+    --good: #0ca30c;
+    --good-text: #006300;
+    --critical: #d03b3b;
+    --warning: #fab219;
+    --r250: #86b6ef; --r300: #6da7ec; --r350: #5598e7; --r400: #3987e5;
+    --r450: #2a78d6; --r500: #256abf; --r550: #1c5cab; --r600: #184f95;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page); color: var(--ink); font-size: 14px; line-height: 1.45;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 24px 48px; }
+
+  header.top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+  header.top h1 { font-size: 21px; font-weight: 650; }
+  .idtim { color: var(--ink-2); font-size: 13px; }
+  .badge-mock {
+    font-size: 11px; font-weight: 650; letter-spacing: 0.4px; color: var(--ink-2);
+    border: 1px solid var(--border); background: var(--surface);
+    padding: 2px 8px; border-radius: 99px;
+  }
+  .meta { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+
+  nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--grid); margin-bottom: 16px; }
+  nav.tabs button {
+    font: inherit; font-size: 13.5px; font-weight: 550; color: var(--ink-2);
+    background: none; border: none; border-bottom: 2px solid transparent;
+    padding: 8px 14px; cursor: pointer;
+  }
+  nav.tabs button:hover { color: var(--ink); background: rgba(11,11,11,0.03); }
+  nav.tabs button.on { color: var(--s1); border-bottom-color: var(--s1); }
+  .page { display: none; }
+  .page.on { display: block; }
+
+  .filters { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filters .lbl { font-size: 12.5px; color: var(--ink-2); margin-right: 2px; }
+  .chip {
+    font: inherit; font-size: 12.5px; padding: 5px 12px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 99px; background: var(--surface); color: var(--ink-2);
+  }
+  .chip:hover { background: rgba(11,11,11,0.04); }
+  .chip.on { background: var(--s1); border-color: var(--s1); color: #fff; font-weight: 600; }
+  .chip.ghost { cursor: default; opacity: 0.55; }
+
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  }
+  .tile .lbl { font-size: 12.5px; color: var(--ink-2); }
+  .tile .val { font-size: 27px; font-weight: 650; margin-top: 2px; }
+  .tile .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tile .sub b.up { color: var(--good-text); font-weight: 600; }
+
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .gridhalf { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+    min-width: 0;
+  }
+  .card h3 { font-size: 13.5px; font-weight: 650; }
+  .card .desc { font-size: 12px; color: var(--muted); margin: 2px 0 12px; }
+
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-2); margin-bottom: 8px; }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .ln { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+
+  .chartbox { position: relative; }
+  svg.line { width: 100%; height: auto; display: block; }
+  .tip {
+    position: absolute; pointer-events: none; display: none; z-index: 5;
+    background: var(--ink); color: #fff; border-radius: 8px; padding: 8px 10px;
+    font-size: 12px; min-width: 130px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  }
+  .tip .t { color: #c3c2b7; margin-bottom: 3px; }
+  .tip .row { display: flex; align-items: center; gap: 7px; }
+  .tip .row .k { width: 12px; height: 2px; border-radius: 1px; }
+  .tip .row b { font-weight: 650; }
+  .tip .row span { color: #c3c2b7; }
+
+  .bars .row { display: grid; grid-template-columns: 168px 1fr 64px; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .bars .row .cat { font-size: 12.5px; color: var(--ink-2); text-align: right; }
+  .bars .row .track { height: 20px; position: relative; }
+  .bars .row .bar { height: 20px; border-radius: 0 4px 4px 0; background: var(--s1); min-width: 2px; transition: width 0.25s; }
+  .bars .row .bar:hover { filter: brightness(1.12); }
+  .bars .row .num { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bars .row .num small { color: var(--muted); font-weight: 400; }
+  .bars.compact .row { grid-template-columns: 128px 1fr 76px; }
+
+  .statustag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+  .statustag.crit { color: var(--critical); }
+  .statustag.good { color: var(--good-text); }
+
+  table.t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.t th {
+    text-align: left; color: var(--muted); font-weight: 550; font-size: 11.5px;
+    border-bottom: 1px solid var(--grid); padding: 5px 8px 5px 0;
+  }
+  table.t td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  table.t td.r, table.t th.r { text-align: right; }
+  table.t tr:last-child td { border-bottom: none; }
+  table.t tr:hover td { background: rgba(11,11,11,0.025); }
+
+  .note {
+    border-left: 3px solid var(--s1); background: var(--surface); border-radius: 0 8px 8px 0;
+    padding: 10px 14px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px;
+  }
+  .note b { color: var(--ink); }
+
+  footer.meta-foot {
+    border-top: 1px solid var(--grid); margin-top: 20px; padding-top: 12px;
+    font-size: 11.5px; color: var(--muted); display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px;
+  }
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2, .grid3, .gridhalf { grid-template-columns: 1fr; }
+    footer.meta-foot { grid-template-columns: 1fr; }
+    .bars .row { grid-template-columns: 110px 1fr 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>TalentTrack CDC</h1>
+    <span class="idtim">Nama Tim | Nomor Peserta (placeholder)</span>
+    <span class="badge-mock">MOCKUP HTML, bukan karya final</span>
+  </header>
+  <div class="meta">
+    Student Placement System, Career Development Center. Sumber: 6 tabel dataset SSDC 2026 (tanpa data eksternal).
+    Cakupan data: Feb 2023 sampai Mei 2025. Angka di mockup ini dihitung dari data asli.
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="on" data-p="p1">Ringkasan</button>
+    <button data-p="p2">Permintaan Talent</button>
+    <button data-p="p3">Mahasiswa</button>
+    <button data-p="p4">Monitoring Proses</button>
+  </nav>
+
+  <!-- ============================ HALAMAN 1 ============================ -->
+  <section class="page on" id="p1">
+
+    <div class="filters">
+      <span class="lbl">Jenis penempatan</span>
+      <button class="chip on" data-j="Semua">Semua</button>
+      <button class="chip" data-j="Magang">Magang</button>
+      <button class="chip" data-j="Part-time">Part-time</button>
+      <button class="chip" data-j="Full-time">Full-time</button>
+      <span class="lbl" style="margin-left:16px">Periode</span>
+      <button class="chip ghost" title="Di Power BI: slicer rentang tanggal">Seluruh periode</button>
+    </div>
+
+    <div class="kpis">
+      <div class="tile"><div class="lbl">Permintaan talent</div><div class="val" id="k-req">12.000</div><div class="sub">dari 1.500 perusahaan mitra</div></div>
+      <div class="tile"><div class="lbl">Kandidat dikirim</div><div class="val" id="k-sent">41.600</div><div class="sub">pengiriman, bukan orang unik</div></div>
+      <div class="tile"><div class="lbl">Placement</div><div class="val" id="k-pl">7.534</div><div class="sub" id="k-pl-sub">5.138 mahasiswa unik</div></div>
+      <div class="tile"><div class="lbl">Tingkat placement</div><div class="val" id="k-rate">18,1%</div><div class="sub">per pengiriman kandidat</div></div>
+      <div class="tile"><div class="lbl">Mahasiswa eligible</div><div class="val">7.135</div><div class="sub">ketersediaan Available, konfirmasi panitia</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Tren bulanan: kandidat dikirim vs placement</h3>
+        <div class="desc">Jumlah per bulan. Arahkan kursor untuk nilai per bulan.</div>
+        <div class="legend">
+          <span class="key"><span class="ln" style="background:var(--s1)"></span>Dikirim</span>
+          <span class="key"><span class="ln" style="background:var(--s2)"></span>Placement</span>
+        </div>
+        <div class="chartbox" id="linebox">
+          <svg class="line" id="linesvg" viewBox="0 0 720 240" role="img" aria-label="Tren bulanan pengiriman dan placement"></svg>
+          <div class="tip" id="linetip"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Status akhir seluruh kandidat</h3>
+        <div class="desc">Posisi terkini semua pengiriman.</div>
+        <div class="bars compact" id="statusbars"></div>
+        <div style="margin-top:10px">
+          <span class="statustag crit">&#9888; Ghosting <span id="s-ghost">2.905</span> kandidat</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Perusahaan dengan tingkat penerimaan tertinggi</h3>
+        <div class="desc">Minimum 30 kandidat dikirim. Menjawab BT-04.</div>
+        <table class="t">
+          <thead><tr><th>Perusahaan</th><th class="r">Dikirim</th><th class="r">Placement</th><th class="r">Tingkat</th></tr></thead>
+          <tbody>
+            <tr><td>PT Cipta Bersama</td><td class="r">31</td><td class="r">11</td><td class="r"><b>35,5%</b></td></tr>
+            <tr><td>PT Sentosa Makmur</td><td class="r">41</td><td class="r">14</td><td class="r"><b>34,1%</b></td></tr>
+            <tr><td>PT Indo Kreatif</td><td class="r">48</td><td class="r">16</td><td class="r"><b>33,3%</b></td></tr>
+            <tr><td>PT Sinergi Makmur</td><td class="r">72</td><td class="r">24</td><td class="r"><b>33,3%</b></td></tr>
+            <tr><td>PT Techno Digital</td><td class="r">37</td><td class="r">12</td><td class="r"><b>32,4%</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Insight utama</h3>
+        <div class="desc">Anotasi naratif, diperbarui tiap rilis.</div>
+        <div class="note"><b>Pengiriman naik, konversi stagnan.</b> Volume pengiriman akhir 2024 mencapai rekor (2.261 pada Des 2024), tapi tingkat placement bertahan di kisaran 18%.</div>
+        <div class="note"><b>1 dari 5 proses berhenti tanpa kabar.</b> 2.905 kandidat berstatus Ghosting dan 4.955 sedang di tahap follow up. Mekanisme FU perlu dievaluasi.</div>
+        <div class="note"><b>Pasokan melebihi permintaan.</b> CDC mengirim 41.600 kandidat untuk 28.717 kursi yang diminta (buffer 45%).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ HALAMAN 2 ============================ -->
+  <section class="page" id="p2">
+    <div class="kpis">
+      <div class="tile"><div class="lbl">Total permintaan</div><div class="val">12.000</div><div class="sub">Feb 2023 sampai Jan 2025</div></div>
+      <div class="tile"><div class="lbl">Total kursi diminta</div><div class="val">28.717</div><div class="sub">headcount seluruh permintaan</div></div>
+      <div class="tile"><div class="lbl">Perusahaan aktif</div><div class="val">1.495</div><div class="sub">5 mitra belum pernah meminta</div></div>
+      <div class="tile"><div class="lbl">Belum dikirimi kandidat</div><div class="val">598</div><div class="sub">permintaan berstatus Draft</div></div>
+      <div class="tile"><div class="lbl">Rata-rata per perusahaan</div><div class="val">8,0</div><div class="sub">permintaan per mitra</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Posisi paling banyak diminta</h3>
+        <div class="desc">8 teratas dari 74 posisi.</div>
+        <div class="bars" id="posbars"></div>
+      </div>
+      <div class="card">
+        <h3>Profil permintaan</h3>
+        <div class="desc">Komposisi berdasarkan tiga atribut utama.</div>
+        <div class="bars compact" id="jenisbars"></div>
+        <div style="height:10px"></div>
+        <div class="bars compact" id="wabars"></div>
+        <div style="height:10px"></div>
+        <div class="bars compact" id="durbars"></div>
+      </div>
+    </div>
+
+    <div class="note"><b>Untuk BT-03 (prioritas permintaan):</b> di Power BI, halaman ini memakai tabel drill-down per perusahaan
+      dengan urutan berdasarkan request_date tertua dan headcount terbesar, plus indikator permintaan yang mendekati kadaluarsa.</div>
+  </section>
+
+  <!-- ============================ HALAMAN 3 ============================ -->
+  <section class="page" id="p3">
+    <div class="kpis">
+      <div class="tile"><div class="lbl">Total mahasiswa</div><div class="val">25.000</div><div class="sub">terdaftar di program CDC</div></div>
+      <div class="tile"><div class="lbl">Berstatus aktif</div><div class="val">19.632</div><div class="sub">78,5% dari total</div></div>
+      <div class="tile"><div class="lbl">Eligible</div><div class="val">7.135</div><div class="sub">ketersediaan Available</div></div>
+      <div class="tile"><div class="lbl">Eligible dan siap kirim</div><div class="val">5.687</div><div class="sub">1.448 eligible belum punya CV</div></div>
+      <div class="tile"><div class="lbl">Punya CV</div><div class="val">85,3%</div><div class="sub">portofolio 60,1%</div></div>
+    </div>
+
+    <div class="gridhalf">
+      <div class="card">
+        <h3>Placement per program studi</h3>
+        <div class="desc">8 teratas berdasarkan jumlah placement. Tingkat = placement dibagi pengiriman prodi itu.</div>
+        <div class="bars" id="prodibars"></div>
+      </div>
+      <div class="card">
+        <h3>Tools paling banyak dikuasai</h3>
+        <div class="desc">10 teratas dari 80 tools, dihitung per mahasiswa.</div>
+        <div class="bars" id="toolbars"></div>
+      </div>
+    </div>
+
+    <div class="note"><b>Definisi eligible sudah resmi.</b> Panitia mengonfirmasi eligible adalah kolom ketersediaan, jadi eligible = Available = 7.135 mahasiswa.
+      Dari jumlah itu, 1.448 belum punya CV padahal CV syarat minimum pengiriman: segmen intervensi termurah untuk menaikkan pasokan kandidat.</div>
+  </section>
+
+  <!-- ============================ HALAMAN 4 ============================ -->
+  <section class="page" id="p4">
+    <div class="kpis">
+      <div class="tile"><div class="lbl">Proses berjalan</div><div class="val">14.910</div><div class="sub">kandidat masih dalam seleksi</div></div>
+      <div class="tile"><div class="lbl">Perlu follow up</div><div class="val">4.955</div><div class="sub">FU 1 sampai FU 3</div></div>
+      <div class="tile"><div class="lbl">Ghosting</div><div class="val" style="color:var(--critical)">2.905</div><div class="sub">perusahaan diam lebih dari 4 minggu</div></div>
+      <div class="tile"><div class="lbl">Selesai (Finish)</div><div class="val">5.442</div><div class="sub">2.578 tanpa hasil akhir jelas</div></div>
+      <div class="tile"><div class="lbl">Data terakhir</div><div class="val" style="font-size:21px">17 Mei 2025</div><div class="sub">last_update paling baru</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Kandidat per tahap seleksi</h3>
+        <div class="desc">Hanya proses yang masih berjalan. Urutan tahap masih usulan, menunggu kesepakatan tim.</div>
+        <div class="bars" id="stagebars"></div>
+      </div>
+      <div class="card">
+        <h3>Antrian follow up</h3>
+        <div class="desc">Semakin tinggi FU, semakin dekat ke ghosting.</div>
+        <div class="bars compact" id="fubars"></div>
+        <div style="margin-top:14px">
+          <span class="statustag crit">&#9888; Aturan resmi panitia</span>
+          <div style="font-size:12px;color:var(--ink-2);margin-top:6px">
+            Ghosting berasal dari pihak perusahaan, dihitung dari send_date:
+            lebih dari 1 minggu tanpa respons FU 1, 2 minggu FU 2, 3 minggu FU 3, 4 minggu Ghosting.
+            Tervalidasi: seluruh 2.905 baris Ghosting memang berumur lebih dari 4 minggu.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note"><b>Untuk BT-02 (monitoring real-time):</b> di Power BI, halaman ini dilengkapi tabel detail per kandidat
+      (NIM, perusahaan, posisi, tahap, umur proses dalam hari) dengan conditional formatting pada umur proses,
+      slicer tahap, dan drill-through dari setiap chart ke daftar kandidatnya.</div>
+  </section>
+
+  <footer class="meta-foot">
+    <div>
+      <b>Metadata.</b> Sumber: 6 tabel Student Placement System (company, talent_request, student_all, status_student, tracking_company, tracking_student).
+      n = 25.000 mahasiswa, 1.500 perusahaan, 12.000 permintaan, 41.600 pengiriman. Data per 17 Mei 2025.
+    </div>
+    <div>
+      <b>Asumsi sementara</b> (menunggu meeting): placement dihitung dari tracking_student, bukan kolom ketersediaan;
+      funnel dibangun dari progress_student; baris Finish tanpa hasil akhir dilaporkan terpisah; angka kosong ditampilkan sebagai "belum dikirim", bukan nol.
+    </div>
+  </footer>
+</div>
+
+<script>
+var DATA = {
+ "Semua":    {req:12000, sent:41600, pl:7534, uniq:5138, rate:"18,1%", rejected:10809, ghosting:2905, finish:5442, proses:14910,
+  kirim:[476,1001,1326,1320,1349,1484,1681,1906,1864,1955,2017,1742,1767,1638,1602,1506,1540,1597,1681,2007,2052,2261,2095,1769],
+  placed:[22,140,249,255,217,253,273,341,357,338,364,342,324,285,303,292,278,277,296,329,331,398,374,336]},
+ "Magang":   {req:7277, sent:25167, pl:4557, uniq:null, rate:"18,1%", rejected:6527, ghosting:1779, finish:3348, proses:8956,
+  kirim:[282,578,797,798,787,910,1040,1165,1131,1214,1247,1098,1110,1034,1037,912,934,957,992,1184,1210,1282,1243,1057],
+  placed:[8,74,138,144,128,153,170,200,208,211,240,209,213,179,187,174,171,165,170,209,184,236,244,196]},
+ "Part-time":{req:2931, sent:10122, pl:1855, uniq:null, rate:"18,3%", rejected:2689, ghosting:668, finish:1281, proses:3629,
+  kirim:[111,239,328,320,369,350,376,465,449,457,449,407,385,362,357,379,410,417,420,511,481,606,539,449],
+  placed:[7,40,67,71,55,68,58,96,87,74,63,90,56,70,75,78,73,75,79,84,82,100,81,93]},
+ "Full-time":{req:1792, sent:6311, pl:1122, uniq:null, rate:"17,8%", rejected:1593, ghosting:458, finish:813, proses:2325,
+  kirim:[83,184,201,202,193,224,265,276,284,284,321,237,272,242,208,215,196,223,269,312,361,373,313,263],
+  placed:[7,26,44,40,34,32,45,45,62,53,61,43,55,36,41,40,34,37,47,36,65,62,49,47]}
+};
+var BULAN = ["Mar 23","Apr 23","Mei 23","Jun 23","Jul 23","Agu 23","Sep 23","Okt 23","Nov 23","Des 23",
+             "Jan 24","Feb 24","Mar 24","Apr 24","Mei 24","Jun 24","Jul 24","Agu 24","Sep 24","Okt 24",
+             "Nov 24","Des 24","Jan 25","Feb 25"];
+
+function fmt(n) { return n.toLocaleString("id-ID"); }
+
+function makeBars(el, rows, opts) {
+  opts = opts || {};
+  var max = 0;
+  rows.forEach(function(r){ if (r[1] > max) max = r[1]; });
+  el.textContent = "";
+  rows.forEach(function(r){
+    var row = document.createElement("div"); row.className = "row";
+    var cat = document.createElement("div"); cat.className = "cat"; cat.textContent = r[0];
+    var track = document.createElement("div"); track.className = "track";
+    var bar = document.createElement("div"); bar.className = "bar";
+    bar.style.width = (r[1] / max * 100) + "%";
+    if (r[3]) bar.style.background = r[3];
+    bar.title = r[0] + ": " + fmt(r[1]);
+    var num = document.createElement("div"); num.className = "num";
+    num.textContent = fmt(r[1]);
+    if (r[2]) {
+      var small = document.createElement("small");
+      small.textContent = " " + r[2];
+      num.appendChild(small);
+    }
+    track.appendChild(bar); row.appendChild(cat); row.appendChild(track); row.appendChild(num);
+    el.appendChild(row);
+  });
+}
+
+/* halaman 1: garis tren */
+var W = 720, H = 240, PAD_L = 44, PAD_R = 14, PAD_T = 10, PAD_B = 28;
+function drawLine(jenis) {
+  var d = DATA[jenis];
+  var svg = document.getElementById("linesvg");
+  var ymax = Math.ceil(Math.max.apply(null, d.kirim) / 500) * 500;
+  var xs = function(i){ return PAD_L + i * (W - PAD_L - PAD_R) / (BULAN.length - 1); };
+  var ys = function(v){ return PAD_T + (1 - v / ymax) * (H - PAD_T - PAD_B); };
+  var s = "";
+  var ticks = 5;
+  for (var t = 0; t <= ticks; t++) {
+    var v = ymax / ticks * t, y = ys(v);
+    s += '<line x1="' + PAD_L + '" y1="' + y + '" x2="' + (W - PAD_R) + '" y2="' + y + '" stroke="#e1e0d9" stroke-width="1"/>';
+    s += '<text x="' + (PAD_L - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10" fill="#898781" style="font-variant-numeric:tabular-nums">' + fmt(v) + "</text>";
+  }
+  for (var i = 0; i < BULAN.length; i += 3) {
+    s += '<text x="' + xs(i) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="#898781">' + BULAN[i] + "</text>";
+  }
+  ["kirim", "placed"].forEach(function(key, si){
+    var col = si === 0 ? "#2a78d6" : "#008300";
+    var pts = d[key].map(function(v, i){ return xs(i).toFixed(1) + "," + ys(v).toFixed(1); }).join(" ");
+    s += '<polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    var li = d[key].length - 1;
+    s += '<circle cx="' + xs(li) + '" cy="' + ys(d[key][li]) + '" r="4" fill="' + col + '" stroke="#fcfcfb" stroke-width="2"/>';
+    s += '<text x="' + (xs(li) - 6) + '" y="' + (ys(d[key][li]) - 8) + '" text-anchor="end" font-size="10.5" font-weight="600" fill="#52514e" style="font-variant-numeric:tabular-nums">' + fmt(d[key][li]) + "</text>";
+  });
+  s += '<line id="xhair" x1="0" y1="' + PAD_T + '" x2="0" y2="' + (H - PAD_B) + '" stroke="#c3c2b7" stroke-width="1" visibility="hidden"/>';
+  svg.innerHTML = s;
+}
+
+function tipRow(color, label, value) {
+  var row = document.createElement("div"); row.className = "row";
+  var k = document.createElement("span"); k.className = "k"; k.style.background = color;
+  var b = document.createElement("b"); b.textContent = fmt(value);
+  var lbl = document.createElement("span"); lbl.textContent = " " + label;
+  row.appendChild(k); row.appendChild(b); row.appendChild(lbl);
+  return row;
+}
+
+var box = document.getElementById("linebox");
+var tip = document.getElementById("linetip");
+box.addEventListener("pointermove", function(e){
+  var svg = document.getElementById("linesvg");
+  var r = svg.getBoundingClientRect();
+  var fx = (e.clientX - r.left) / r.width * W;
+  var i = Math.round((fx - PAD_L) / ((W - PAD_L - PAD_R) / (BULAN.length - 1)));
+  if (i < 0) i = 0;
+  if (i > BULAN.length - 1) i = BULAN.length - 1;
+  var d = DATA[curJenis];
+  var xh = document.getElementById("xhair");
+  var x = PAD_L + i * (W - PAD_L - PAD_R) / (BULAN.length - 1);
+  xh.setAttribute("x1", x); xh.setAttribute("x2", x); xh.setAttribute("visibility", "visible");
+  tip.textContent = "";
+  var t = document.createElement("div"); t.className = "t"; t.textContent = BULAN[i];
+  tip.appendChild(t);
+  tip.appendChild(tipRow("#2a78d6", "dikirim", d.kirim[i]));
+  tip.appendChild(tipRow("#008300", "placement", d.placed[i]));
+  tip.style.display = "block";
+  var px = x / W * r.width + 12;
+  if (px > r.width - 150) px = px - 165;
+  tip.style.left = px + "px";
+  tip.style.top = "30px";
+});
+box.addEventListener("pointerleave", function(){
+  tip.style.display = "none";
+  document.getElementById("xhair").setAttribute("visibility", "hidden");
+});
+
+/* halaman 1: status akhir + KPI, dikendalikan filter chip */
+var curJenis = "Semua";
+function render(jenis) {
+  curJenis = jenis;
+  var d = DATA[jenis];
+  document.getElementById("k-req").textContent = fmt(d.req);
+  document.getElementById("k-sent").textContent = fmt(d.sent);
+  document.getElementById("k-pl").textContent = fmt(d.pl);
+  document.getElementById("k-pl-sub").textContent = d.uniq ? fmt(d.uniq) + " mahasiswa unik" : "per pengiriman kandidat";
+  document.getElementById("k-rate").textContent = d.rate;
+  document.getElementById("s-ghost").textContent = fmt(d.ghosting);
+  makeBars(document.getElementById("statusbars"), [
+    ["Masih proses", d.proses, "", "#86b6ef"],
+    ["Rejected", d.rejected, "", "#2a78d6"],
+    ["Placement", d.pl, "", "#0ca30c"],
+    ["Finish", d.finish, "", "#5598e7"],
+    ["Ghosting", d.ghosting, "", "#d03b3b"]
+  ]);
+  drawLine(jenis);
+}
+document.querySelectorAll(".chip[data-j]").forEach(function(c){
+  c.addEventListener("click", function(){
+    document.querySelectorAll(".chip[data-j]").forEach(function(x){ x.classList.remove("on"); });
+    c.classList.add("on");
+    render(c.getAttribute("data-j"));
+  });
+});
+
+/* tab */
+document.querySelectorAll("#tabs button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("#tabs button").forEach(function(x){ x.classList.remove("on"); });
+    document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("on"); });
+    b.classList.add("on");
+    document.getElementById(b.getAttribute("data-p")).classList.add("on");
+  });
+});
+
+/* halaman 2 */
+makeBars(document.getElementById("posbars"), [
+  ["Data Analyst", 1393], ["IT Support", 937], ["Quality Control Staff", 406],
+  ["Mechanical Engineer Intern", 348], ["Business Analyst", 345], ["Digital Marketing Intern", 341],
+  ["Data Entry Operator", 327], ["IT Staff", 326]
+]);
+makeBars(document.getElementById("jenisbars"), [
+  ["Magang", 7277], ["Part-time", 2931], ["Full-time", 1792]
+]);
+makeBars(document.getElementById("wabars"), [
+  ["WFO", 4771, "", "#5598e7"], ["Hybrid", 4746, "", "#5598e7"], ["WFH", 2483, "", "#5598e7"]
+]);
+makeBars(document.getElementById("durbars"), [
+  ["3 Bulan", 4798, "", "#86b6ef"], ["6 Bulan", 3573, "", "#86b6ef"],
+  ["4 Bulan", 2441, "", "#86b6ef"], ["Tidak Terbatas", 1188, "", "#86b6ef"]
+]);
+
+/* halaman 3 */
+makeBars(document.getElementById("prodibars"), [
+  ["Manajemen", 1431, "18,1%"], ["Informatika", 998, "18,4%"], ["Sistem Informasi", 989, "18,3%"],
+  ["Ilmu Komunikasi", 579, "18,0%"], ["Teknik Industri", 490, "19,8%"], ["DKV", 408, "17,3%"],
+  ["Teknik Mesin", 370, "17,5%"], ["Akuntansi", 357, "18,5%"]
+]);
+makeBars(document.getElementById("toolbars"), [
+  ["Excel", 5693], ["Python", 5122], ["SQL", 4850], ["SAP", 3662], ["SPSS", 3612],
+  ["Power BI", 3353], ["MATLAB", 2457], ["Canva", 2422], ["AutoCAD", 2242], ["Figma", 1976]
+]);
+
+/* halaman 4: ramp ordinal biru sesuai urutan tahap */
+makeBars(document.getElementById("stagebars"), [
+  ["Selecting by Company", 1673, "", "#86b6ef"],
+  ["Study Case", 1678, "", "#6da7ec"],
+  ["CDC Briefing Student", 1619, "", "#5598e7"],
+  ["Interview User", 3278, "", "#3987e5"],
+  ["Final Interview", 1707, "", "#256abf"]
+]);
+makeBars(document.getElementById("fubars"), [
+  ["FU 1", 2062, "", "#fab219"],
+  ["FU 2", 1657, "", "#ec835a"],
+  ["FU 3", 1236, "", "#d03b3b"]
+]);
+
+render("Semua");
+
+var hash = location.hash.replace("#", "");
+if (hash) {
+  var btn = document.querySelector('#tabs button[data-p="' + hash + '"]');
+  if (btn) btn.click();
+}
+</script>
+</body>
+</html>
