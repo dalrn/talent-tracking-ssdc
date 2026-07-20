@@ -169,6 +169,21 @@ class RawData:
 # Per file readers. Each forces its own delimiter and dtypes, then parses dates.
 # ---------------------------------------------------------------------------
 
+def _resolve_data_dir(data_dir):
+    """Resolve DATA_DIR against dashboard/, not the process working directory.
+
+    config.DATA_DIR is "../Data/Raw", written relative to the dashboard/
+    folder (Section 5.2). If the caller passes that literal relative string,
+    anchor it to this file's location so loads work regardless of where the
+    process was launched from (streamlit run, a plain import, a test runner).
+    An already absolute path is returned unchanged.
+    """
+    if os.path.isabs(data_dir):
+        return data_dir
+    dashboard_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.normpath(os.path.join(dashboard_dir, data_dir))
+
+
 def _path(data_dir, key):
     return os.path.join(data_dir, FILES[key])
 
@@ -282,6 +297,7 @@ def _load_impl(data_dir=DATA_DIR):
 
     This is the plain function. load_data wraps it in the Streamlit cache.
     """
+    data_dir = _resolve_data_dir(data_dir)
     verify_tracking_company_checksums(data_dir)
 
     company = _read_company(data_dir)
