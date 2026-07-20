@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalentTrack CDC, Matching</title>
+<style>
+  :root{
+    --page:#eef0ee;--desk:#e4e7e3;--panel:#ffffff;--ink:#14181a;--ink2:#4a5157;
+    --muted:#828b90;--line:#d5dad6;--line2:#e6eae6;--accent:#0f5f66;
+    --c-crit:#b42318;--c-crit-bg:#fdeceb;--c-warn:#b25b06;--c-warn-bg:#fbf1e6;
+    --c-hot:#155fa0;--c-hot-bg:#eaf1f8;--c-ok:#256a3d;--c-ok-bg:#e9f3ec;
+    --score:#0f5f66;--score-bg:#e3efef;
+    --mono:"SF Mono",ui-monospace,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--desk);
+       color:var(--ink);font-size:13.5px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 20px 40px;}
+
+  header.top{display:flex;align-items:center;gap:14px;padding:16px 4px 12px;flex-wrap:wrap;}
+  .logo{display:flex;align-items:baseline;gap:9px;}
+  .logo b{font-size:18px;font-weight:680;letter-spacing:-.2px;}
+  .logo .sub{font-size:12px;color:var(--ink2);}
+  .snap{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);
+        background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;}
+  .snap .dot{width:7px;height:7px;border-radius:50%;background:var(--c-warn);flex:none;}
+  .snap b{color:var(--ink);}
+  nav.tabs{display:flex;gap:2px;margin:0 0 14px;border-bottom:1px solid var(--line);}
+  nav.tabs a{font-size:13px;font-weight:560;color:var(--muted);text-decoration:none;
+             padding:9px 15px;border-bottom:2px solid transparent;}
+  nav.tabs a.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:640;}
+  nav.tabs a:not(.on):hover{color:var(--ink);}
+
+  .board{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;}
+
+  /* LEFT: request queue (BT-03) */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .p-head{display:flex;align-items:baseline;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);}
+  .p-head h3{font-size:13px;font-weight:670;}
+  .p-head .count{font-size:11px;color:var(--muted);margin-left:auto;}
+  .reqsort{padding:8px 14px;border-bottom:1px solid var(--line2);display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{font-size:11px;color:var(--ink2);background:var(--page);border:1px solid var(--line);
+        border-radius:99px;padding:3px 10px;cursor:pointer;}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .reqlist{max-height:640px;overflow:auto;}
+  .req{padding:11px 14px;border-bottom:1px solid var(--line2);cursor:pointer;}
+  .req:hover{background:#f6f8f6;}
+  .req.sel{background:var(--c-hot-bg);box-shadow:inset 3px 0 0 var(--accent);}
+  .req .r1{display:flex;align-items:baseline;gap:8px;}
+  .req .pos{font-weight:640;font-size:13px;}
+  .req .pen{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:99px;background:var(--score-bg);color:var(--score);margin-left:auto;white-space:nowrap;}
+  .req .co{font-size:12px;color:var(--ink2);margin:1px 0 5px;}
+  .req .meta{display:flex;gap:12px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .req .fill{font-weight:600;}
+  .req .fill.short{color:var(--c-warn);}
+  .req .need{font-family:var(--mono);}
+
+  /* RIGHT: candidate shortlist */
+  .rightcol{display:flex;flex-direction:column;gap:14px;}
+
+  .reqcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .reqcard .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);font-weight:670;}
+  .reqcard h2{font-size:18px;font-weight:700;letter-spacing:-.3px;margin-top:2px;}
+  .reqcard .sub{font-size:12.5px;color:var(--ink2);margin-bottom:10px;}
+  .reqcard .reqs{display:flex;flex-wrap:wrap;gap:6px;}
+  .reqtag{font-size:11.5px;background:var(--page);border:1px solid var(--line);border-radius:7px;padding:4px 9px;}
+  .reqtag b{color:var(--ink);font-weight:620;}
+  .reqtag.gate{border-color:var(--c-hot);background:var(--c-hot-bg);color:var(--c-hot);}
+
+  /* weight controls */
+  .weights{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px 14px;}
+  .weights .wh{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
+  .weights .wh h3{font-size:12px;font-weight:670;text-transform:uppercase;letter-spacing:.03em;color:var(--ink2);}
+  .weights .wh span{font-size:11px;color:var(--muted);}
+  .weights .wh .reset{margin-left:auto;font-size:11px;color:var(--accent);cursor:pointer;font-weight:600;}
+  .wgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .wctl label{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px;}
+  .wctl label b{font-variant-numeric:tabular-nums;color:var(--accent);}
+  .wctl input[type=range]{width:100%;accent-color:var(--accent);height:4px;}
+  .gatesnote{font-size:11px;color:var(--muted);margin-top:11px;padding-top:10px;border-top:1px solid var(--line2);}
+  .gatesnote b{color:var(--ink2);}
+
+  /* candidate list */
+  .cand-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);}
+  .cand-head h3{font-size:13px;font-weight:670;}
+  .cand-head .count{font-size:11px;color:var(--muted);}
+  .cand-head .send{margin-left:auto;font:inherit;font-size:12px;font-weight:600;background:var(--accent);
+                   color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;}
+  .cand-head .send:hover{background:#0c4d53;}
+  .cand-head .send.dim{background:var(--line);color:var(--muted);cursor:default;}
+
+  table.c{width:100%;border-collapse:collapse;}
+  table.c th{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
+             font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
+  table.c th.r,table.c td.r{text-align:right;}
+  table.c th.c,table.c td.c{text-align:center;}
+  table.c td{padding:8px 10px;border-bottom:1px solid var(--line2);vertical-align:middle;}
+  table.c tbody tr:hover{background:#f6f8f6;}
+  table.c tbody tr:last-child td{border-bottom:none;}
+  .ck{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;}
+  .who{display:flex;flex-direction:column;line-height:1.28;}
+  .who b{font-weight:620;font-size:13px;}
+  .who .nim{font-family:var(--mono);font-size:10px;color:var(--muted);}
+  .prodi{font-size:12px;}
+  .prodi small{display:block;font-size:10.5px;color:var(--muted);}
+
+  /* the score cell: number + component breakdown */
+  .score{display:flex;align-items:center;gap:9px;}
+  .score .val{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--score);
+              font-variant-numeric:tabular-nums;width:26px;text-align:right;}
+  .bars{display:flex;gap:2px;align-items:flex-end;height:22px;}
+  .bars i{width:7px;border-radius:1px 1px 0 0;display:block;background:var(--score);opacity:.85;}
+  .bars i.miss{background:var(--line);opacity:1;height:3px !important;}
+  .brk{font-size:10.5px;color:var(--muted);white-space:nowrap;}
+  .brk b{color:var(--ink2);font-weight:600;}
+
+  .flag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;
+        padding:2px 7px;border-radius:99px;white-space:nowrap;}
+  .flag.busy{background:var(--c-warn-bg);color:var(--c-warn);}
+  .flag.nocv{background:var(--c-crit-bg);color:var(--c-crit);}
+  .flag.clean{background:var(--c-ok-bg);color:var(--c-ok);}
+
+  .cand-foot{padding:9px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);
+             display:flex;justify-content:space-between;gap:12px;}
+  .fallnote{padding:9px 14px;background:var(--c-warn-bg);color:var(--c-warn);font-size:11.5px;
+            border-top:1px solid var(--line);display:none;}
+
+  footer.fm{margin-top:20px;padding-top:12px;border-top:1px solid var(--line);
+            font-size:11px;color:var(--muted);line-height:1.6;}
+  footer.fm b{color:var(--ink2);}
+  .badge-mock{font-size:10px;font-weight:650;letter-spacing:.4px;color:var(--c-warn);
+              background:var(--c-warn-bg);border-radius:99px;padding:2px 9px;}
+
+  @media(max-width:1000px){.board{grid-template-columns:1fr;}.wgrid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo"><b>TalentTrack</b><span class="sub">CDC Placement Desk</span></div>
+  </header>
+
+  <nav class="tabs">
+    <a href="#">Beranda</a>
+    <a class="on" href="#">Matching</a>
+    <a href="#">Monitoring</a>
+    <a href="#">Analitik</a>
+  </nav>
+
+  <div class="board">
+
+    <!-- LEFT: request queue = BT-03 -->
+    <div class="panel">
+      <div class="p-head"><h3>Permintaan terbuka</h3><span class="count">312 belum terpenuhi</span></div>
+      <div class="reqsort">
+        <span style="font-size:11px;color:var(--muted);align-self:center;">Urut:</span>
+        <button class="chip on">Terlama</button>
+        <button class="chip">Headcount</button>
+        <button class="chip">Kurang terisi</button>
+      </div>
+      <div class="reqlist" id="reqlist"></div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="rightcol">
+
+      <div class="reqcard" id="reqcard"></div>
+
+      <div class="weights">
+        <div class="wh">
+          <h3>Bobot penilaian</h3><span>geser untuk menyesuaikan prioritas. skor dihitung ulang langsung.</span>
+          <span class="reset" id="reset">Kembalikan default</span>
+        </div>
+        <div class="wgrid">
+          <div class="wctl"><label>Prodi <b id="v-prodi">35</b></label><input type="range" id="w-prodi" min="0" max="50" value="35"></div>
+          <div class="wctl"><label>Tools <b id="v-tools">30</b></label><input type="range" id="w-tools" min="0" max="50" value="30"></div>
+          <div class="wctl"><label>IPK <b id="v-ipk">20</b></label><input type="range" id="w-ipk" min="0" max="50" value="20"></div>
+          <div class="wctl"><label>Domisili (WFO) <b id="v-dom">15</b></label><input type="range" id="w-dom" min="0" max="50" value="15"></div>
+        </div>
+        <div class="gatesnote"><b>Gerbang wajib (bukan bobot):</b> ketersediaan = Available (eligible) &middot; semester &ge; minimum. Kandidat yang tak lolos gerbang tidak muncul, apa pun bobotnya.</div>
+      </div>
+
+      <div class="panel">
+        <div class="cand-head">
+          <h3>Kandidat cocok</h3>
+          <span class="count" id="candCount"></span>
+          <button class="send dim" id="sendBtn">Pilih untuk dikirim</button>
+        </div>
+        <table class="c">
+          <thead>
+            <tr>
+              <th class="c" style="width:34px;"></th>
+              <th>Mahasiswa</th>
+              <th>Prodi</th>
+              <th>Skor cocok</th>
+              <th>Rincian</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="candbody"></tbody>
+        </table>
+        <div class="fallnote" id="fallnote"></div>
+        <div class="cand-foot">
+          <span>Skor 0&ndash;100 tertimbang dari komponen di atas. Batang = kontribusi tiap komponen. Abu-abu = komponen tak terpenuhi.</span>
+          <span>Ekspor shortlist</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ---- illustrative data ---- */
+const REQS = [
+  {id:"TR0412",pos:"Data Analyst",co:"PT Bangkit Pratama",pen:"Magang",need:3,sent:1,date:"01 Mar 2025",
+   prodi:["Informatika","Sistem Informasi","Statistika"],minsem:5,ipkmin:3.0,arr:"Hybrid",city:"Yogyakarta",
+   tools:["Python","SQL","Power BI"]},
+  {id:"TR0388",pos:"UI/UX Designer",co:"CV Nusa Teknologi",pen:"Magang",need:2,sent:0,date:"27 Feb 2025",
+   prodi:["Desain Komunikasi Visual","Ilmu Komunikasi"],minsem:4,ipkmin:0,arr:"WFH",city:"-",
+   tools:["Figma","Canva"]},
+  {id:"TR0421",pos:"Accounting Staff",co:"PT Jaya Sentosa",pen:"Full-time",need:2,sent:0,date:"03 Mar 2025",
+   prodi:["Akuntansi","Manajemen"],minsem:7,ipkmin:3.25,arr:"WFO",city:"Surakarta",tools:["Excel","SAP"]},
+  {id:"TR0355",pos:"Frontend Developer",co:"PT Techno Gemilang",pen:"Part-time",need:4,sent:2,date:"22 Feb 2025",
+   prodi:["Informatika","Sistem Informasi","Teknik Elektro"],minsem:5,ipkmin:3.0,arr:"Hybrid",city:"Semarang",
+   tools:["JavaScript","React","SQL"]},
+];
+
+/* candidate pools per request (already gate-passed: Available + semester ok) */
+const CANDS = {
+ "TR0412":[
+  {n:"Fajar Ramadhan",nim:"202216740",prodi:"Informatika",sem:6,ipk:3.61,dom:"Yogyakarta",
+   tools:["Python","SQL","Power BI","Excel"],cv:true,busy:false,
+   comp:{prodi:1,tools:1.0,ipk:0.95,dom:1}},
+  {n:"Ratna Anggara",nim:"202114220",prodi:"Statistika",sem:6,ipk:3.48,dom:"Klaten",
+   tools:["Python","SQL","R"],cv:true,busy:true,
+   comp:{prodi:1,tools:0.67,ipk:0.85,dom:0}},
+  {n:"Bagus Wicaksono",nim:"202015883",prodi:"Sistem Informasi",sem:8,ipk:3.30,dom:"Yogyakarta",
+   tools:["SQL","Power BI","Tableau"],cv:true,busy:false,
+   comp:{prodi:1,tools:0.67,ipk:0.72,dom:1}},
+  {n:"Intan Permata",nim:"202118322",prodi:"Statistika",sem:5,ipk:3.55,dom:"Surakarta",
+   tools:["Python","Excel"],cv:false,busy:false,
+   comp:{prodi:1,tools:0.33,ipk:0.90,dom:0}},
+  {n:"Yoga Saputra",nim:"202216115",prodi:"Informatika",sem:5,ipk:3.05,dom:"Sragen",
+   tools:["Python","SQL"],cv:true,busy:false,
+   comp:{prodi:1,tools:0.67,ipk:0.55,dom:0}},
+ ]
+};
+CANDS["TR0388"]=CANDS["TR0421"]=CANDS["TR0355"]=CANDS["TR0412"]; // reuse for mock
+
+let W={prodi:35,tools:30,ipk:20,dom:15}, curReq="TR0412";
+
+function score(c,req){
+  // domicile only counts when WFO/Hybrid; if WFH, redistribute its weight
+  const domRelevant = req.arr!=="WFH";
+  let wsum = W.prodi+W.tools+W.ipk+(domRelevant?W.dom:0);
+  let s = W.prodi*c.comp.prodi + W.tools*c.comp.tools + W.ipk*c.comp.ipk
+        + (domRelevant?W.dom*c.comp.dom:0);
+  return Math.round(100*s/wsum);
+}
+function bars(c,req){
+  const domRelevant=req.arr!=="WFH";
+  const items=[["prodi",c.comp.prodi],["tools",c.comp.tools],["ipk",c.comp.ipk]];
+  if(domRelevant) items.push(["dom",c.comp.dom]);
+  return items.map(([k,v])=>{
+    const h=Math.max(3,Math.round(3+v*19));
+    return `<i class="${v===0?'miss':''}" style="height:${h}px"></i>`;
+  }).join("");
+}
+function brkText(c,req){
+  const t=[];
+  t.push(c.comp.prodi>=1?`prodi <b>cocok</b>`:`prodi <b>rumpun</b>`);
+  t.push(`tools <b>${Math.round(c.comp.tools*req.tools.length)}/${req.tools.length}</b>`);
+  t.push(`IPK <b>${c.ipk.toFixed(2)}</b>`);
+  if(req.arr!=="WFH") t.push(c.comp.dom?`<b>sekota</b>`:`luar kota`);
+  return t.join(" &middot; ");
+}
+
+function renderReqList(){
+  document.getElementById("reqlist").innerHTML = REQS.map(r=>{
+    const short=(r.need-r.sent)>0;
+    return `<div class="req ${r.id===curReq?'sel':''}" data-id="${r.id}">
+      <div class="r1"><span class="pos">${r.pos}</span><span class="pen">${r.pen}</span></div>
+      <div class="co">${r.co}</div>
+      <div class="meta">
+        <span class="fill ${short?'short':''}">terisi <span class="need">${r.sent}/${r.need}</span></span>
+        <span>min sem ${r.minsem}</span>
+        <span>${r.date}</span>
+      </div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll(".req").forEach(el=>el.addEventListener("click",()=>{
+    curReq=el.dataset.id; renderReqList(); renderAll();
+  }));
+}
+
+function renderReqCard(){
+  const r=REQS.find(x=>x.id===curReq);
+  document.getElementById("reqcard").innerHTML=`
+    <div class="eyebrow">${r.id} &middot; ${r.co}</div>
+    <h2>${r.pos}</h2>
+    <div class="sub">${r.pen} &middot; butuh ${r.need} orang (${r.sent} terkirim) &middot; ${r.arr}${r.city!=="-"?" &middot; "+r.city:""}</div>
+    <div class="reqs">
+      <span class="reqtag gate">min semester <b>${r.minsem}</b></span>
+      ${r.ipkmin?`<span class="reqtag">IPK min <b>${r.ipkmin.toFixed(2)}</b></span>`:''}
+      <span class="reqtag">prodi: <b>${r.prodi.join(", ")}</b></span>
+      <span class="reqtag">tools: <b>${r.tools.join(", ")}</b></span>
+    </div>`;
+}
+
+function renderCands(){
+  const r=REQS.find(x=>x.id===curReq);
+  const rows=(CANDS[curReq]||[]).map(c=>({c,s:score(c,r)})).sort((a,b)=>b.s-a.s);
+  document.getElementById("candCount").textContent=`${rows.length} lolos gerbang, urut skor`;
+  document.getElementById("candbody").innerHTML=rows.map(({c,s})=>{
+    const flag = c.busy
+      ? `<span class="flag busy">proses lain</span>`
+      : (!c.cv?`<span class="flag nocv">tanpa CV</span>`:`<span class="flag clean">siap</span>`);
+    return `<tr>
+      <td class="c"><input type="checkbox" class="ck" ${c.busy?'':'checked'}></td>
+      <td><div class="who"><b>${c.n}</b><span class="nim">${c.nim}</span></div></td>
+      <td><div class="prodi">${c.prodi}<small>sem ${c.sem} &middot; ${c.dom}</small></div></td>
+      <td><div class="score"><span class="val">${s}</span><div class="bars">${bars(c,r)}</div></div></td>
+      <td><span class="brk">${brkText(c,r)}</span></td>
+      <td>${flag}</td>
+    </tr>`;
+  }).join("");
+  const sel=rows.filter(x=>!x.c.busy).length;
+  const btn=document.getElementById("sendBtn");
+  btn.textContent=`Kirim ${sel} kandidat terpilih`;
+  btn.classList.toggle("dim",sel===0);
+
+  const fn=document.getElementById("fallnote");
+  if(rows.length<r.need){ fn.style.display="block";
+    fn.innerHTML=`Hanya ${rows.length} kandidat exact-prodi lolos gerbang untuk ${r.need} kebutuhan. Longgarkan ke rumpun bidang terdekat untuk menambah kandidat.`;
+  } else fn.style.display="none";
+}
+
+function renderAll(){renderReqCard();renderCands();}
+
+function bindWeights(){
+  [["prodi","w-prodi","v-prodi"],["tools","w-tools","v-tools"],["ipk","w-ipk","v-ipk"],["dom","w-dom","v-dom"]]
+  .forEach(([k,slider,val])=>{
+    const s=document.getElementById(slider);
+    s.addEventListener("input",()=>{W[k]=+s.value;document.getElementById(val).textContent=s.value;renderCands();});
+  });
+  document.getElementById("reset").addEventListener("click",()=>{
+    W={prodi:35,tools:30,ipk:20,dom:15};
+    for(const [k,sl,vl] of [["prodi","w-prodi","v-prodi"],["tools","w-tools","v-tools"],["ipk","w-ipk","v-ipk"],["dom","w-dom","v-dom"]]){
+      document.getElementById(sl).value=W[k];document.getElementById(vl).textContent=W[k];
+    }
+    renderCands();
+  });
+}
+
+renderReqList();renderAll();bindWeights();
+</script>
+</body>
+</html>

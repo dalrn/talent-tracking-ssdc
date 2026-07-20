@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalentTrack CDC, Monitoring</title>
+<style>
+  :root{
+    --page:#eef0ee;--desk:#e4e7e3;--panel:#ffffff;--ink:#14181a;--ink2:#4a5157;
+    --muted:#828b90;--line:#d5dad6;--line2:#e6eae6;--accent:#0f5f66;
+    --c-crit:#b42318;--c-crit-bg:#fdeceb;--c-warn:#b25b06;--c-warn-bg:#fbf1e6;
+    --c-hot:#155fa0;--c-hot-bg:#eaf1f8;--c-ok:#256a3d;--c-ok-bg:#e9f3ec;
+    --funnel:#2c7a82;--death:#c9a27a;
+    --mono:"SF Mono",ui-monospace,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--desk);
+       color:var(--ink);font-size:13.5px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 20px 40px;}
+  header.top{display:flex;align-items:center;gap:14px;padding:16px 4px 12px;flex-wrap:wrap;}
+  .logo{display:flex;align-items:baseline;gap:9px;}
+  .logo b{font-size:18px;font-weight:680;letter-spacing:-.2px;}
+  .logo .sub{font-size:12px;color:var(--ink2);}
+  .snap{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);
+        background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;}
+  .snap .dot{width:7px;height:7px;border-radius:50%;background:var(--c-warn);flex:none;}
+  .snap b{color:var(--ink);}
+  nav.tabs{display:flex;gap:2px;margin:0 0 12px;border-bottom:1px solid var(--line);}
+  nav.tabs a{font-size:13px;font-weight:560;color:var(--muted);text-decoration:none;
+             padding:9px 15px;border-bottom:2px solid transparent;}
+  nav.tabs a.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:640;}
+  nav.tabs a:not(.on):hover{color:var(--ink);}
+
+  /* filter bar */
+  .filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);
+           border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:16px;}
+  .filters .flabel{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:640;}
+  .fgrp{display:flex;gap:4px;}
+  .fbtn{font:inherit;font-size:11.5px;color:var(--ink2);background:var(--page);border:1px solid var(--line);
+        border-radius:99px;padding:4px 11px;cursor:pointer;}
+  .fbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .filters .sep{width:1px;height:20px;background:var(--line);margin:0 4px;}
+
+  .sec-lead{display:flex;align-items:baseline;gap:10px;margin:0 2px 9px;}
+  .sec-lead h2{font-size:13px;font-weight:670;text-transform:uppercase;letter-spacing:.02em;color:var(--ink2);}
+  .sec-lead span{font-size:12px;color:var(--muted);}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;}
+
+  /* ---- FUNNEL ---- */
+  .funnel{padding:16px 18px 18px;margin-bottom:16px;}
+  .fnl-row{display:flex;align-items:center;gap:14px;margin-bottom:9px;cursor:pointer;}
+  .fnl-row:hover .barwrap{filter:brightness(.97);}
+  .fnl-row:last-child{margin-bottom:0;}
+  .fnl-name{width:190px;flex:none;font-size:12.5px;display:flex;flex-direction:column;line-height:1.25;}
+  .fnl-name b{font-weight:600;}
+  .fnl-name small{color:var(--muted);font-size:10.5px;}
+  .barwrap{flex:1;display:flex;align-items:center;gap:0;height:34px;position:relative;}
+  .bar-live{background:var(--funnel);height:100%;border-radius:5px 0 0 5px;display:flex;align-items:center;
+            padding-left:10px;color:#fff;font-weight:640;font-size:12.5px;font-variant-numeric:tabular-nums;min-width:44px;}
+  .bar-live.only{border-radius:5px;}
+  .bar-death{background:var(--death);height:100%;border-radius:0 5px 5px 0;display:flex;align-items:center;
+             padding:0 9px;color:#5a3d1e;font-weight:600;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .fnl-link{width:78px;flex:none;text-align:right;font-size:11px;color:var(--accent);font-weight:600;}
+  .fnl-legend{display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line2);font-size:11.5px;color:var(--ink2);}
+  .fnl-legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+  .callout{background:var(--c-warn-bg);border-radius:9px;padding:11px 13px;margin-top:13px;font-size:12px;color:var(--ink2);line-height:1.5;}
+  .callout b{color:var(--ink);}
+
+  /* two columns below */
+  .cols{display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start;}
+
+  /* company table */
+  .p-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .p-head h3{font-size:13px;font-weight:670;}
+  .p-head .count{font-size:11px;color:var(--muted);}
+  .p-head .view{margin-left:auto;display:flex;gap:4px;}
+  table.t{width:100%;border-collapse:collapse;}
+  table.t th{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
+             font-weight:600;text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);}
+  table.t th.r,table.t td.r{text-align:right;}
+  table.t td{padding:9px 12px;border-bottom:1px solid var(--line2);vertical-align:middle;}
+  table.t tbody tr:last-child td{border-bottom:none;}
+  table.t tbody tr:hover{background:#f6f8f6;}
+  .coname{font-weight:600;font-size:12.5px;}
+  .cometa{font-size:10.5px;color:var(--muted);}
+  .rate{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums;}
+  .rate.hi{color:var(--c-ok);} .rate.lo{color:var(--c-crit);}
+  /* confidence interval bar */
+  .ci{display:flex;align-items:center;gap:7px;}
+  .ci-track{width:96px;height:6px;background:var(--line2);border-radius:3px;position:relative;}
+  .ci-band{position:absolute;height:100%;background:#bcd6d3;border-radius:3px;}
+  .ci-pt{position:absolute;width:2px;height:10px;top:-2px;background:var(--funnel);}
+  .ci-txt{font-size:10px;color:var(--muted);font-family:var(--mono);white-space:nowrap;}
+  .smalln{font-size:9.5px;font-weight:600;color:var(--c-warn);background:var(--c-warn-bg);padding:1px 5px;border-radius:99px;margin-left:5px;}
+  .p-foot{padding:9px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);}
+
+  /* ghosting pattern */
+  .ghost-body{padding:14px 16px;}
+  .ghtot{display:flex;align-items:baseline;gap:8px;margin-bottom:3px;}
+  .ghtot b{font-size:30px;font-weight:700;color:var(--c-crit);font-variant-numeric:tabular-nums;letter-spacing:-1px;}
+  .ghtot span{font-size:12px;color:var(--ink2);}
+  .ghsub{font-size:11.5px;color:var(--muted);margin-bottom:14px;}
+  .ghfind{background:var(--c-crit-bg);border-radius:9px;padding:10px 12px;font-size:11.5px;color:var(--ink2);line-height:1.5;margin-bottom:14px;}
+  .ghfind b{color:var(--c-crit);}
+  .ghsec{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:640;margin-bottom:8px;}
+  .ghrow{display:flex;align-items:center;gap:9px;margin-bottom:7px;font-size:12px;}
+  .ghrow .gn{width:150px;flex:none;}
+  .ghrow .gbar{flex:1;height:14px;background:var(--line2);border-radius:3px;overflow:hidden;}
+  .ghrow .gbar i{display:block;height:100%;background:var(--c-crit);opacity:.7;border-radius:3px;}
+  .ghrow .gv{width:34px;text-align:right;font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;}
+  .ghlink{display:block;margin-top:6px;font-size:11px;color:var(--accent);font-weight:600;}
+
+  footer.fm{margin-top:20px;padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.6;}
+  footer.fm b{color:var(--ink2);}
+  .badge-mock{font-size:10px;font-weight:650;letter-spacing:.4px;color:var(--c-warn);background:var(--c-warn-bg);border-radius:99px;padding:2px 9px;}
+  @media(max-width:1000px){.cols{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo"><b>TalentTrack</b><span class="sub">CDC Placement Desk</span></div>
+  </header>
+
+  <nav class="tabs">
+    <a href="#">Beranda</a>
+    <a href="#">Matching</a>
+    <a class="on" href="#">Monitoring</a>
+    <a href="#">Analitik</a>
+  </nav>
+
+  <div class="filters">
+    <span class="flabel">Filter</span>
+    <div class="fgrp">
+      <button class="fbtn on">Semua penempatan</button><button class="fbtn">Magang</button>
+      <button class="fbtn">Part-time</button><button class="fbtn">Full-time</button>
+    </div>
+    <span class="sep"></span>
+    <div class="fgrp">
+      <button class="fbtn on">Semua prodi</button><button class="fbtn">IT &amp; Data</button>
+      <button class="fbtn">Bisnis</button><button class="fbtn">Teknik</button>
+    </div>
+    <span class="sep"></span>
+    <div class="fgrp"><button class="fbtn">Sektor &#9662;</button><button class="fbtn">Rentang tanggal &#9662;</button></div>
+  </div>
+
+  <!-- ===== FUNNEL ===== -->
+  <div class="sec-lead"><h2>Funnel seleksi</h2><span>posisi setiap proses aktif di funnel, dan di mana kandidat berguguran. Klik satu tahap untuk buka daftarnya di Beranda.</span></div>
+  <div class="panel funnel">
+    <!-- rows: live count (teal) + deaths at that gate (clay). widths scaled to entrants. -->
+    <div class="fnl-row">
+      <div class="fnl-name"><b>Selecting by Company</b><small>perusahaan meninjau profil</small></div>
+      <div class="barwrap">
+        <div class="bar-live" style="width:22%">1.673</div>
+        <div class="bar-death" style="width:44%">&minus;3.368 gugur screening CV</div>
+      </div>
+      <div class="fnl-link">Buka &rarr;</div>
+    </div>
+    <div class="fnl-row">
+      <div class="fnl-name"><b>Study Case</b><small>tes / studi kasus</small></div>
+      <div class="barwrap">
+        <div class="bar-live" style="width:22%">1.678</div>
+        <div class="bar-death" style="width:33%">&minus;2.509 gugur study case</div>
+      </div>
+      <div class="fnl-link">Buka &rarr;</div>
+    </div>
+    <div class="fnl-row">
+      <div class="fnl-name"><b>Interview User</b><small>wawancara hiring manager</small></div>
+      <div class="barwrap">
+        <div class="bar-live" style="width:43%">3.278</div>
+        <div class="bar-death" style="width:50%">&minus;3.805 gugur interview user</div>
+      </div>
+      <div class="fnl-link">Buka &rarr;</div>
+    </div>
+    <div class="fnl-row">
+      <div class="fnl-name"><b>Final Interview</b><small>wawancara tahap akhir</small></div>
+      <div class="barwrap">
+        <div class="bar-live" style="width:22%">1.707</div>
+        <div class="bar-death" style="width:27%">&minus;2.054 gugur final</div>
+      </div>
+      <div class="fnl-link">Buka &rarr;</div>
+    </div>
+    <div class="fnl-row">
+      <div class="fnl-name"><b>Placement</b><small>diterima &amp; ditempatkan</small></div>
+      <div class="barwrap">
+        <div class="bar-live only" style="width:60%;background:var(--c-ok)">7.534 placed</div>
+      </div>
+      <div class="fnl-link">Buka &rarr;</div>
+    </div>
+
+    <div class="fnl-legend">
+      <span><i style="background:var(--funnel)"></i>Aktif di tahap (progress_student)</span>
+      <span><i style="background:var(--death)"></i>Gugur di tahap ini (rejection)</span>
+      <span><i style="background:var(--c-ok)"></i>Placement</span>
+    </div>
+    <div class="callout">
+      <b>Kebocoran terbesar: Interview User.</b>
+    </div>
+  </div>
+
+  <div class="cols">
+
+    <!-- ===== COMPANY TABLE ===== -->
+    <div>
+      <div class="sec-lead"><h2>Performa perusahaan</h2><span>versi operasional ringkas. Analisis penuh ada di tab Analitik.</span></div>
+      <div class="panel">
+        <div class="p-head">
+          <h3>Acceptance per perusahaan</h3><span class="count">543 perusahaan, n&ge;30</span>
+          <div class="view"><button class="fbtn on">Tertinggi</button><button class="fbtn">Terendah</button></div>
+        </div>
+        <table class="t">
+          <thead><tr><th>Perusahaan</th><th class="r">Kirim</th><th>Acceptance (95% CI)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="coname">PT Cipta Bersama</div><div class="cometa">Full-time &middot; Teknologi</div></td>
+              <td class="r">31<span class="smalln">n kecil</span></td>
+              <td><div class="ci">
+                <div class="ci-track"><div class="ci-band" style="left:20%;width:52%"></div><div class="ci-pt" style="left:35%"></div></div>
+                <span class="ci-txt">35.5% &plusmn;16</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td><div class="coname">PT Sentosa Makmur</div><div class="cometa">Magang &middot; Logistik</div></td>
+              <td class="r">41</td>
+              <td><div class="ci">
+                <div class="ci-track"><div class="ci-band" style="left:21%;width:44%"></div><div class="ci-pt" style="left:34%"></div></div>
+                <span class="ci-txt">34.1% &plusmn;14</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td><div class="coname">PT Indo Kreatif</div><div class="cometa">Magang &middot; Kreatif</div></td>
+              <td class="r">48</td>
+              <td><div class="ci">
+                <div class="ci-track"><div class="ci-band" style="left:21%;width:38%"></div><div class="ci-pt" style="left:33%"></div></div>
+                <span class="ci-txt">33.3% &plusmn;13</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td><div class="coname">PT Esa Mandiri</div><div class="cometa">Full-time &middot; Keuangan</div></td>
+              <td class="r">102</td>
+              <td><div class="ci">
+                <div class="ci-track"><div class="ci-band" style="left:19%;width:16%"></div><div class="ci-pt" style="left:26%"></div></div>
+                <span class="ci-txt">26.5% &plusmn;9</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td><div class="coname">CV Sentosa Makmur</div><div class="cometa">Magang &middot; Ritel</div></td>
+              <td class="r">103</td>
+              <td><div class="ci">
+                <div class="ci-track"><div class="ci-band" style="left:14%;width:15%"></div><div class="ci-pt" style="left:21%"></div></div>
+                <span class="ci-txt">21.4% &plusmn;8</span>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="p-foot">
+          Titik = acceptance rate; pita = selang kepercayaan 95% (Wilson). Pita lebar = sampel kecil, ranking belum bisa dipercaya. <b>PT Cipta Bersama 35.5%</b> hanya dari 31 kirim: pitanya tumpang tindih dengan PT Esa Mandiri (26.5%, 102 kirim), jadi belum tentu betul-betul lebih baik.
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== GHOSTING PATTERN ===== -->
+    <div>
+      <div class="sec-lead"><h2>Pola ghosting</h2><span>tingkat sistem, bukan per orang.</span></div>
+      <div class="panel ghost-body">
+        <div class="ghtot"><b>2.905</b><span>proses ghosting</span></div>
+        <div class="ghsub">7,0% dari seluruh proses tracking. &gt;4 minggu tanpa respons.</div>
+        <div class="ghfind">
+          <b>Tersebar, bukan segelintir pelaku.</b> Perusahaan ghosting terbanyak pun hanya 14 kasus. Artinya ghosting adalah masalah sistemik yang butuh mekanisme follow up terstruktur, bukan sekadar blacklist beberapa perusahaan.
+        </div>
+        <div class="ghsec">Rate ghosting tertinggi (n&ge;30)</div>
+        <div class="ghrow"><span class="gn">PT Techno Konsultan</span><span class="gbar"><i style="width:100%"></i></span><span class="gv">22.5%</span></div>
+        <div class="ghrow"><span class="gn">PT Bakti Inovasi</span><span class="gbar"><i style="width:96%"></i></span><span class="gv">21.6%</span></div>
+        <div class="ghrow"><span class="gn">PT Global Indonesia</span><span class="gbar"><i style="width:94%"></i></span><span class="gv">21.1%</span></div>
+        <a class="ghlink" href="#">Lihat semua proses ghosting di Beranda &rarr;</a>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll('.fbtn').forEach(b=>b.addEventListener('click',function(){
+  const grp=this.parentElement; if(grp.classList.contains('fgrp')||grp.classList.contains('view')){
+    grp.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('on')); this.classList.add('on');
+  }
+}));
+document.querySelectorAll('.fnl-row,.fnl-link,.ghlink').forEach(el=>el.addEventListener('click',e=>{
+  e.preventDefault();
+}));
+</script>
+</body>
+</html>

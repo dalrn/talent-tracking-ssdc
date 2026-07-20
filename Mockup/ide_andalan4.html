@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalentTrack CDC, Analitik</title>
+<style>
+  :root{
+    --page:#eef0ee;--desk:#e4e7e3;--panel:#ffffff;--ink:#14181a;--ink2:#4a5157;
+    --muted:#828b90;--line:#d5dad6;--line2:#e6eae6;--accent:#0f5f66;
+    --c-crit:#b42318;--c-crit-bg:#fdeceb;--c-warn:#b25b06;--c-warn-bg:#fbf1e6;
+    --c-hot:#155fa0;--c-hot-bg:#eaf1f8;--c-ok:#256a3d;--c-ok-bg:#e9f3ec;
+    --bar:#3a8088;--barlite:#bcd6d3;--ref:#c98a3c;
+    --mono:"SF Mono",ui-monospace,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--desk);
+       color:var(--ink);font-size:13.5px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 20px 40px;}
+  header.top{display:flex;align-items:center;gap:14px;padding:16px 4px 12px;flex-wrap:wrap;}
+  .logo{display:flex;align-items:baseline;gap:9px;}
+  .logo b{font-size:18px;font-weight:680;letter-spacing:-.2px;}
+  .logo .sub{font-size:12px;color:var(--ink2);}
+  .snap{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);
+        background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;}
+  .snap .dot{width:7px;height:7px;border-radius:50%;background:var(--c-warn);flex:none;}
+  .snap b{color:var(--ink);}
+  nav.tabs{display:flex;gap:2px;margin:0 0 14px;border-bottom:1px solid var(--line);}
+  nav.tabs a{font-size:13px;font-weight:560;color:var(--muted);text-decoration:none;
+             padding:9px 15px;border-bottom:2px solid transparent;}
+  nav.tabs a.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:640;}
+  nav.tabs a:not(.on):hover{color:var(--ink);}
+
+  .rep-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+  .rep-head .t h1{font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .rep-head .t p{font-size:12px;color:var(--muted);}
+  .rep-head .exp{margin-left:auto;display:flex;gap:8px;}
+  .exp button{font:inherit;font-size:12px;font-weight:600;padding:8px 13px;border-radius:8px;cursor:pointer;
+              border:1px solid var(--line);background:var(--panel);color:var(--ink2);display:flex;align-items:center;gap:6px;}
+  .exp button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .exp button:hover{background:#e9ece9;} .exp button.primary:hover{background:#0c4d53;}
+
+  .sec-lead{display:flex;align-items:baseline;gap:10px;margin:0 2px 9px;}
+  .sec-lead h2{font-size:13px;font-weight:670;text-transform:uppercase;letter-spacing:.02em;color:var(--ink2);}
+  .sec-lead span{font-size:12px;color:var(--muted);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;}
+
+  /* ---- dual success ---- */
+  .dual{display:grid;grid-template-columns:1fr 1fr auto;gap:0;margin-bottom:20px;overflow:hidden;}
+  .kpi{padding:18px 20px;border-right:1px solid var(--line2);}
+  .kpi .lab{font-size:12px;color:var(--ink2);font-weight:600;margin-bottom:4px;}
+  .kpi .big{font-size:44px;font-weight:750;letter-spacing:-2px;line-height:1;font-variant-numeric:tabular-nums;}
+  .kpi .frac{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:5px;}
+  .kpi.proc .big{color:var(--c-warn);}
+  .kpi.pers .big{color:var(--c-ok);}
+  .kpi .tag{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:99px;display:inline-block;margin-top:8px;}
+  .kpi.proc .tag{background:var(--c-warn-bg);color:var(--c-warn);}
+  .kpi.pers .tag{background:var(--c-ok-bg);color:var(--c-ok);}
+  .gap{padding:16px 20px;max-width:290px;display:flex;flex-direction:column;justify-content:center;font-size:12px;color:var(--ink2);line-height:1.5;}
+  .gap b{color:var(--ink);}
+
+  /* ---- trend ---- */
+  .trend{padding:16px 18px 18px;margin-bottom:20px;}
+  .trend-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .trend-head h3{font-size:13px;font-weight:670;}
+  .toggle{margin-left:auto;display:flex;background:var(--page);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .toggle button{font:inherit;font-size:11.5px;font-weight:600;padding:5px 13px;cursor:pointer;border:none;background:transparent;color:var(--ink2);}
+  .toggle button.on{background:var(--accent);color:#fff;}
+  .chart{position:relative;height:230px;}
+  .plot{position:relative;height:190px;border-bottom:1px solid var(--line);margin-left:34px;}
+  .yleft{position:absolute;left:-34px;top:0;bottom:0;width:30px;font-size:9.5px;color:var(--muted);font-family:var(--mono);}
+  .yleft span{position:absolute;right:2px;transform:translateY(-50%);}
+  .bars{position:absolute;inset:0;display:flex;align-items:flex-end;gap:3px;padding:0 2px;}
+  .bcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative;height:100%;}
+  .bcol .b{width:70%;background:var(--barlite);border-radius:2px 2px 0 0;}
+  .bcol.partial .b{background:repeating-linear-gradient(45deg,var(--barlite),var(--barlite) 3px,#fff 3px,#fff 6px);}
+  .xlab{display:flex;gap:3px;margin-left:34px;margin-top:5px;}
+  .xlab span{flex:1;text-align:center;font-size:9px;color:var(--muted);}
+  .trend-legend{display:flex;gap:16px;margin-top:12px;font-size:11.5px;color:var(--ink2);}
+  .trend-legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+  .trend-note{font-size:11.5px;color:var(--ink2);background:var(--c-hot-bg);border-radius:8px;padding:9px 12px;margin-top:12px;line-height:1.5;}
+  .trend-note b{color:var(--ink);}
+
+  /* ---- segmentation ---- */
+  .seg-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+  .segbox{padding:14px 16px;}
+  .segbox h3{font-size:12.5px;font-weight:670;margin-bottom:2px;}
+  .segbox .hint{font-size:11px;color:var(--muted);margin-bottom:12px;}
+  .sbar{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-size:12px;}
+  .sbar .sn{width:130px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sbar .strack{flex:1;height:15px;background:var(--line2);border-radius:3px;position:relative;}
+  .sbar .strack i{display:block;height:100%;background:var(--bar);border-radius:3px;opacity:.8;}
+  .sbar .sv{width:40px;text-align:right;font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;}
+  .sbar .snn{width:52px;text-align:right;font-size:10px;color:var(--muted);font-family:var(--mono);}
+  .sbar.out .strack i{background:var(--c-warn);opacity:.85;}
+  .refmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ref);z-index:2;}
+  .reflabel{font-size:10.5px;color:var(--ref);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+  .reflabel i{width:12px;height:2px;background:var(--ref);display:inline-block;}
+
+  /* ---- league table ---- */
+  .p-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .p-head h3{font-size:13px;font-weight:670;}
+  .p-head .count{font-size:11px;color:var(--muted);}
+  .p-head .srt{margin-left:auto;display:flex;gap:4px;}
+  .srt button{font:inherit;font-size:11px;color:var(--ink2);background:var(--page);border:1px solid var(--line);border-radius:99px;padding:4px 10px;cursor:pointer;}
+  .srt button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  table.t{width:100%;border-collapse:collapse;}
+  table.t th{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600;text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);}
+  table.t th.r,table.t td.r{text-align:right;}
+  table.t td{padding:9px 12px;border-bottom:1px solid var(--line2);vertical-align:middle;}
+  table.t tbody tr:last-child td{border-bottom:none;}
+  table.t tbody tr:hover{background:#f6f8f6;}
+  .rk{font-family:var(--mono);color:var(--muted);font-size:11px;width:22px;}
+  .coname{font-weight:600;font-size:12.5px;}
+  .cometa{font-size:10.5px;color:var(--muted);}
+  .ci{display:flex;align-items:center;gap:8px;}
+  .ci-track{width:120px;height:6px;background:var(--line2);border-radius:3px;position:relative;}
+  .ci-band{position:absolute;height:100%;background:var(--barlite);border-radius:3px;}
+  .ci-pt{position:absolute;width:2px;height:10px;top:-2px;background:var(--bar);}
+  .ci-txt{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;}
+  .smalln{font-size:9.5px;font-weight:600;color:var(--c-warn);background:var(--c-warn-bg);padding:1px 5px;border-radius:99px;margin-left:5px;}
+  .p-foot{padding:9px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);}
+
+  footer.fm{margin-top:20px;padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.6;}
+  footer.fm b{color:var(--ink2);}
+  .badge-mock{font-size:10px;font-weight:650;letter-spacing:.4px;color:var(--c-warn);background:var(--c-warn-bg);border-radius:99px;padding:2px 9px;}
+  @media(max-width:1000px){.seg-grid,.dual{grid-template-columns:1fr;}.gap{max-width:none;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo"><b>TalentTrack</b><span class="sub">CDC Placement Desk</span></div>
+  </header>
+
+  <nav class="tabs">
+    <a href="#">Beranda</a><a href="#">Matching</a><a href="#">Monitoring</a>
+    <a class="on" href="#">Analitik</a>
+  </nav>
+
+  <div class="rep-head">
+    <div class="t">
+      <h1>Laporan kinerja placement</h1>
+      <p>Rekap untuk pimpinan institusi. Data Feb 2023 sampai Mei 2025.</p>
+    </div>
+    <div class="exp">
+      <button>&#128459; Cetak</button>
+      <button class="primary">&#8681; Ekspor laporan (PDF)</button>
+    </div>
+  </div>
+
+  <!-- ===== DUAL SUCCESS RATE ===== -->
+  <div class="sec-lead"><h2>Tingkat keberhasilan</h2></div>
+  <div class="panel dual">
+    <div class="kpi proc">
+      <div class="lab">Per pengiriman</div>
+      <div class="big">18,1%</div>
+      <div class="frac">7.534 placement / 41.600 pengiriman</div>
+      <div class="tag">konversi per proses</div>
+    </div>
+    <div class="kpi pers">
+      <div class="lab">Per mahasiswa</div>
+      <div class="big">50,5%</div>
+      <div class="frac">5.138 placed / 10.174 mahasiswa dikirim</div>
+      <div class="tag">keberhasilan per orang</div>
+    </div>
+    <div class="gap">
+      <b>Kenapa berbeda?</b> Satu mahasiswa dikirim ke banyak perusahaan dan cukup berhasil di satu. Jadi hanya 18% pengiriman yang jadi, tetapi separuh mahasiswa yang diajukan akhirnya tertempatkan. Untuk laporan pimpinan, angka <b>per mahasiswa</b> yang menjawab "berapa banyak yang terbantu".
+    </div>
+  </div>
+
+  <!-- ===== TREND ===== -->
+  <div class="sec-lead"><h2>Tren waktu</h2></div>
+  <div class="panel trend">
+    <div class="trend-head">
+      <h3>Pengiriman &amp; placement</h3>
+      <div class="toggle">
+        <button id="tg-mon">Bulanan</button>
+        <button class="on" id="tg-sem">Per semester</button>
+      </div>
+    </div>
+    <div class="chart">
+      <div class="plot" id="plot">
+        <div class="yleft" id="yleft"></div>
+        <div class="bars" id="bars"></div>
+      </div>
+      <div class="xlab" id="xlab"></div>
+    </div>
+    <div class="trend-legend">
+      <span><i style="background:var(--barlite)"></i>Volume pengiriman (kiri)</span>
+      <span><i style="background:repeating-linear-gradient(45deg,var(--barlite),var(--barlite) 2px,#fff 2px,#fff 4px)"></i>Periode belum lengkap</span>
+    </div>
+    <div class="trend-note">
+      <b>Insight</b>
+    </div>
+  </div>
+
+  <!-- ===== SEGMENTATION ===== -->
+  <div class="sec-lead"><h2>Rincian per segmen</h2></div>
+  <div class="seg-grid">
+    <div class="panel segbox">
+      <h3>Per program studi</h3>
+      <div class="hint">rate placement, ukuran sampel di kanan</div>
+      <div class="reflabel"><i></i>rata-rata 18,1%</div>
+      <div id="segProdi"></div>
+    </div>
+    <div class="panel segbox">
+      <h3>Per sektor industri</h3>
+      <div class="hint">rate placement, ukuran sampel di kanan</div>
+      <div class="reflabel"><i></i>rata-rata 18,1%</div>
+      <div id="segSektor"></div>
+    </div>
+  </div>
+  <div class="panel segbox" style="margin-bottom:20px;">
+    <div style="font-size:11.5px;color:var(--ink2);line-height:1.5;">
+      <b>Insight</b>
+    </div>
+  </div>
+
+  <!-- ===== LEAGUE TABLE ===== -->
+  <div class="sec-lead"><h2>Liga perusahaan</h2></div>
+  <div class="panel">
+    <div class="p-head">
+      <h3>Acceptance per perusahaan</h3><span class="count">543 perusahaan, n&ge;30</span>
+      <div class="srt"><button class="on">Rate tertinggi</button><button>Volume terbanyak</button><button>Paling andal (CI sempit)</button></div>
+    </div>
+    <table class="t">
+      <thead><tr><th class="rk"></th><th>Perusahaan</th><th class="r">Kirim</th><th class="r">Placed</th><th>Acceptance (95% CI Wilson)</th></tr></thead>
+      <tbody>
+        <tr><td class="rk">1</td><td><div class="coname">PT Cipta Bersama</div><div class="cometa">Full-time &middot; Teknologi</div></td><td class="r">31<span class="smalln">n kecil</span></td><td class="r">11</td>
+          <td><div class="ci"><div class="ci-track"><div class="ci-band" style="left:20%;width:52%"></div><div class="ci-pt" style="left:35.5%"></div></div><span class="ci-txt">35,5% &plusmn;16</span></div></td></tr>
+        <tr><td class="rk">2</td><td><div class="coname">PT Sentosa Makmur</div><div class="cometa">Magang &middot; Logistik</div></td><td class="r">41</td><td class="r">14</td>
+          <td><div class="ci"><div class="ci-track"><div class="ci-band" style="left:21%;width:44%"></div><div class="ci-pt" style="left:34.1%"></div></div><span class="ci-txt">34,1% &plusmn;14</span></div></td></tr>
+        <tr><td class="rk">3</td><td><div class="coname">PT Indo Kreatif</div><div class="cometa">Magang &middot; Kreatif</div></td><td class="r">48</td><td class="r">16</td>
+          <td><div class="ci"><div class="ci-track"><div class="ci-band" style="left:21%;width:38%"></div><div class="ci-pt" style="left:33.3%"></div></div><span class="ci-txt">33,3% &plusmn;13</span></div></td></tr>
+        <tr><td class="rk">4</td><td><div class="coname">PT Esa Mandiri</div><div class="cometa">Full-time &middot; Keuangan</div></td><td class="r">102</td><td class="r">27</td>
+          <td><div class="ci"><div class="ci-track"><div class="ci-band" style="left:19%;width:16%"></div><div class="ci-pt" style="left:26.5%"></div></div><span class="ci-txt">26,5% &plusmn;9</span></div></td></tr>
+        <tr><td class="rk">5</td><td><div class="coname">CV Sentosa Makmur</div><div class="cometa">Magang &middot; Ritel</div></td><td class="r">103</td><td class="r">22</td>
+          <td><div class="ci"><div class="ci-track"><div class="ci-band" style="left:14%;width:15%"></div><div class="ci-pt" style="left:21.4%"></div></div><span class="ci-txt">21,4% &plusmn;8</span></div></td></tr>
+      </tbody>
+    </table>
+    <div class="p-foot">
+      Titik = rate; pita = selang kepercayaan Wilson 95%. <b>Insight</b>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MON=[
+ ["Jul24",1614,19.5],["Ags24",1796,18.8],["Sep24",2084,16.3],["Okt24",2221,18.7],
+ ["Nov24",2159,16.2],["Des24",2098,18.0],["Jan25",1992,18.8],["Feb25",881,18.7,true]
+];
+const SEM=[
+ ["Genap 22/23",7563,18.2],["Ganjil 23/24",11398,18.3],["Genap 23/24",9408,18.2],
+ ["Ganjil 24/25",12350,17.8],["Genap 24/25",881,18.7,true]
+];
+function draw(series){
+  const maxV=Math.max(...series.map(d=>d[1]));
+  const bars=document.getElementById('bars'), xlab=document.getElementById('xlab'),
+        yleft=document.getElementById('yleft');
+  bars.innerHTML=series.map(d=>`<div class="bcol ${d[3]?'partial':''}"><div class="b" style="height:${d[1]/maxV*100}%"></div></div>`).join('');
+  xlab.innerHTML=series.map(d=>`<span>${d[0]}</span>`).join('');
+  // left axis ticks
+  yleft.innerHTML=[0,.25,.5,.75,1].map(f=>`<span style="top:${(1-f)*100}%">${Math.round(maxV*f/1000)}k</span>`).join('');
+}
+document.getElementById('tg-mon').addEventListener('click',function(){
+  this.classList.add('on');document.getElementById('tg-sem').classList.remove('on');draw(MON);});
+document.getElementById('tg-sem').addEventListener('click',function(){
+  this.classList.add('on');document.getElementById('tg-mon').classList.remove('on');draw(SEM);});
+
+/* segmentation */
+const PRODI=[
+ ["Sastra Inggris",20.7,251,true],["Teknik Industri",19.8,2476],["Psikologi",18.8,980],
+ ["Akuntansi",18.5,1927],["Informatika",18.4,5426],["Manajemen",18.1,7902],
+ ["Statistika",18.0,1567],["Teknik Mesin",17.5,2111],["DKV",17.3,2355],
+ ["Ekonomi Pemb.",17.0,1167],["Ilmu Hukum",12.4,251,true]
+];
+const SEKTOR=[
+ ["Agribisnis",19.9,2230],["Konsultan Mgmt",19.1,2149],["Asuransi",19.0,2888],
+ ["Otomotif",18.8,2273],["Manufaktur",18.6,2110],["Logistik",18.6,2533],
+ ["Retail",18.1,3080],["Teknologi Info",17.8,2493],["Kesehatan",17.5,2061],
+ ["Energi",17.3,2602],["E-commerce",15.9,1994]
+];
+const REF=18.1, SCALE=24; // max% for bar scaling
+function segBars(el,data){
+  document.getElementById(el).innerHTML=data.map(d=>{
+    const [name,rate,n,out]=d;
+    return `<div class="sbar ${out?'out':''}">
+      <span class="sn">${name}</span>
+      <span class="strack"><i style="width:${rate/SCALE*100}%"></i><span class="refmark" style="left:${REF/SCALE*100}%"></span></span>
+      <span class="sv">${rate.toFixed(1)}%</span>
+      <span class="snn">n=${n>=1000?(n/1000).toFixed(1)+'k':n}</span>
+    </div>`;
+  }).join('');
+}
+segBars('segProdi',PRODI);
+segBars('segSektor',SEKTOR);
+draw(SEM);
+</script>
+</body>
+</html>

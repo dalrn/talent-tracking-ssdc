@@ -1,0 +1,208 @@
+# core/clean.py
+# Data cleaning rules. Section 3 of the specification.
+# General principle: flag, do not drop. Problem rows get a boolean column,
+# they are never deleted, so they stay reportable as data quality findings.
+# The raw CSVs are never edited. All fixes live here in code.
+#
+# This module takes a RawData object from loader.py and returns a CleanData
+# object with the same tables plus the added flag and helper columns.
+
+import re
+from dataclasses import dataclass
+
+import pandas as pd
+
+import schema
+
+
+@dataclass
+class CleanData:
+    company: pd.DataFrame
+    talent_request: pd.DataFrame
+    student_all: pd.DataFrame
+    status_student: pd.DataFrame
+    tracking_company: pd.DataFrame
+    tracking_student: pd.DataFrame
+    ANCHOR: pd.Timestamp
+    SYNC_REF: pd.Timestamp
+
+
+# ---------------------------------------------------------------------------
+# 3.1 Finish + On Progress anomaly. The most important rule.
+# Add is_anomali = True on these rows. Do not drop.
+# ---------------------------------------------------------------------------
+
+def flag_anomali(tracking_student):
+    """Mark rows where progress is Finish but rejection is On Progress.
+
+    These two values contradict each other. The organizer calls this noise.
+    Every success rate uses tracking_student[~is_anomali].
+    Source columns: progress_student, rejection.
+    """
+    df = tracking_student.copy()
+    df["is_anomali"] = (
+        (df["progress_student"] == schema.STAGE_FINISH)
+        & (df["rejection"] == schema.REJ_ONPROGRESS)
+    )
+    return df
+
+
+# ---------------------------------------------------------------------------
+# 3.4 Reconstruct the 48 broken list_nim rows.
+# A broken row holds one valid NIM then ",2", a number truncated by a sheet.
+# tracking_student has exactly one extra child NIM missing from the list.
+# Build list_nim_bersih. The raw CSV is not edited.
+# ---------------------------------------------------------------------------
+
+# A broken list_nim looks like "20211268,2": digits, comma, then a lone "2".
+_BROKEN_PATTERN = re.compile(r"^\d+,2$")
+
+
+def _is_broken_list_nim(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return False
+    return bool(_BROKEN_PATTERN.match(str(value).strip()))
+
+
+def build_list_nim_bersih(tracking_company, tracking_student):
+    """Return tracking_company with a list_nim_bersih column and is_list_nim_broken flag.
+
+    For a broken row, drop the trailing "2" fragment, then find the one child
+    NIM in tracking_student (same id_tracking_company) missing from the list,
+    and append it. Clean rows keep list_nim unchanged.
+    Source columns: tracking_company.list_nim, tracking_student.NIM.
+    """
+    df = tracking_company.copy()
+
+    # Map each id_tracking_company to the set of its child NIM values.
+    kids = (
+        tracking_student.groupby("id_tracking_company")["NIM"]
+        .apply(lambda s: set(s.dropna()))
+        .to_dict()
+    )
+
+    broken_flags = []
+    bersih_values = []
+    for _, row in df.iterrows():
+        raw = row["list_nim"]
+        if _is_broken_list_nim(raw):
+            broken_flags.append(True)
+            # Listed NIM values, minus the trailing lone "2".
+            parts = [p.strip() for p in str(raw).split(",")]
+            listed = set(parts[:-1])
+            child_set = kids.get(row["id_tracking_company"], set())
+            missing = child_set - listed
+            # The document proves exactly one missing NIM per broken row.
+            if len(missing) == 1:
+                fixed = sorted(listed | missing)
+                bersih_values.append(",".join(fixed))
+            else:
+                # Should never happen on this data. Keep listed part, no guess.
+                bersih_values.append(",".join(sorted(listed)))
+        else:
+            broken_flags.append(False)
+            bersih_values.append(raw)
+
+    df["is_list_nim_broken"] = broken_flags
+    df["list_nim_bersih"] = bersih_values
+    return df
+
+
+# ---------------------------------------------------------------------------
+# 3.6 Phone leading zeros.
+# status_student.no_whatsapp lost its leading zero in all rows (starts 8xx).
+# student_all.hp is still correct (starts 08xx). Recommendation: use hp.
+# We keep hp as the source and also add a repaired no_whatsapp for consistency.
+# ---------------------------------------------------------------------------
+
+def fix_phone_leading_zero(status_student):
+    """Add no_whatsapp_fixed: prefix a 0 when the number starts with 8.
+
+    student_all.hp stays the recommended contact source. This repaired column
+    exists so status_student is internally consistent if a page needs it.
+    Source column: status_student.no_whatsapp.
+    """
+    df = status_student.copy()
+
+    def _fix(v):
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return v
+        s = str(v).strip()
+        if s.startswith("0"):
+            return s
+        if s.startswith("8"):
+            return "0" + s
+        return s
+
+    df["no_whatsapp_fixed"] = df["no_whatsapp"].map(_fix)
+    return df
+
+
+# ---------------------------------------------------------------------------
+# 3.7 Multi value study fields.
+# Parse comma separated program lists into a Python list column for membership.
+# talent_request.bidang_studi_dibutuhkan and tracking_company.bidang_studi_dicari.
+# status_student.tools is also comma separated; parse it too for Matching.
+# ---------------------------------------------------------------------------
+
+def _split_multi(value):
+    """Split a comma separated string into a stripped list. Blank gives []."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return []
+    s = str(value).strip()
+    if s == "":
+        return []
+    return [part.strip() for part in s.split(",") if part.strip() != ""]
+
+
+def parse_multi_value_fields(talent_request, tracking_company, status_student):
+    """Add list columns for the multi value study and tools fields.
+
+    talent_request gets bidang_studi_dibutuhkan_list.
+    tracking_company gets bidang_studi_dicari_list.
+    status_student gets tools_list.
+    Source columns named above. No permanent explode is created.
+    """
+    tr = talent_request.copy()
+    tc = tracking_company.copy()
+    ss = status_student.copy()
+
+    tr["bidang_studi_dibutuhkan_list"] = tr["bidang_studi_dibutuhkan"].map(_split_multi)
+    tc["bidang_studi_dicari_list"] = tc["bidang_studi_dicari"].map(_split_multi)
+    ss["tools_list"] = ss["tools"].map(_split_multi)
+
+    return tr, tc, ss
+
+
+# ---------------------------------------------------------------------------
+# Public entry point. Runs every rule in order and returns CleanData.
+# ---------------------------------------------------------------------------
+
+def clean_data(raw):
+    """Apply all cleaning rules to a RawData object. Return CleanData.
+
+    Order: flag anomali, reconstruct list_nim, fix phones, parse multi value.
+    ANCHOR and SYNC_REF pass through unchanged.
+    """
+    tracking_student = flag_anomali(raw.tracking_student)
+
+    tracking_company = build_list_nim_bersih(
+        raw.tracking_company, tracking_student
+    )
+
+    status_student = fix_phone_leading_zero(raw.status_student)
+
+    talent_request, tracking_company, status_student = parse_multi_value_fields(
+        raw.talent_request, tracking_company, status_student
+    )
+
+    return CleanData(
+        company=raw.company,
+        talent_request=talent_request,
+        student_all=raw.student_all,
+        status_student=status_student,
+        tracking_company=tracking_company,
+        tracking_student=tracking_student,
+        ANCHOR=raw.ANCHOR,
+        SYNC_REF=raw.SYNC_REF,
+    )

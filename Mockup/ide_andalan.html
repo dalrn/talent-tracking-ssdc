@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalentTrack CDC, Beranda (Antrean Tindakan)</title>
+<style>
+  :root {
+    --page:#eef0ee; --desk:#e4e7e3; --panel:#ffffff; --ink:#14181a; --ink2:#4a5157;
+    --muted:#828b90; --line:#d5dad6; --line2:#e6eae6;
+    --accent:#0f5f66;
+    --c-crit:#b42318; --c-crit-bg:#fdeceb;
+    --c-warn:#b25b06; --c-warn-bg:#fbf1e6;
+    --c-watch:#8a6d14; --c-watch-bg:#f8f3e2;
+    --c-hot:#155fa0; --c-hot-bg:#eaf1f8;
+    --c-ok:#256a3d;  --c-ok-bg:#e9f3ec;
+    --mono:"SF Mono",ui-monospace,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--desk);
+       color:var(--ink);font-size:13.5px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 20px 40px;}
+
+  header.top{display:flex;align-items:center;gap:14px;padding:16px 4px 12px;flex-wrap:wrap;}
+  .logo{display:flex;align-items:baseline;gap:9px;}
+  .logo b{font-size:18px;font-weight:680;letter-spacing:-0.2px;}
+  .logo .sub{font-size:12px;color:var(--ink2);}
+  .snap{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);
+        background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;}
+  .snap .dot{width:7px;height:7px;border-radius:50%;background:var(--c-warn);flex:none;}
+  .snap b{color:var(--ink);font-weight:620;}
+
+  nav.tabs{display:flex;gap:2px;margin:0 0 14px;border-bottom:1px solid var(--line);}
+  nav.tabs a{font-size:13px;font-weight:560;color:var(--muted);text-decoration:none;
+             padding:9px 15px;border-bottom:2px solid transparent;}
+  nav.tabs a.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:640;}
+  nav.tabs a:not(.on):hover{color:var(--ink);}
+
+  .seg-lead{display:flex;align-items:baseline;gap:10px;margin-bottom:9px;flex-wrap:wrap;}
+  .seg-lead h2{font-size:13px;font-weight:670;letter-spacing:0.02em;text-transform:uppercase;color:var(--ink2);}
+  .seg-lead span{font-size:12px;color:var(--muted);}
+  .segs{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:22px;}
+  .seg{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 14px;
+       cursor:pointer;position:relative;transition:transform .08s,box-shadow .12s;text-align:left;
+       font:inherit;color:inherit;display:block;}
+  .seg:hover{transform:translateY(-1px);box-shadow:0 3px 12px rgba(20,24,26,.07);}
+  .seg.on{outline:2px solid var(--accent);outline-offset:-2px;}
+  .seg .cap{font-size:11.5px;font-weight:600;color:var(--ink2);display:flex;align-items:center;gap:6px;}
+  .seg .cap .pip{width:8px;height:8px;border-radius:2px;flex:none;}
+  .seg .n{font-size:30px;font-weight:700;letter-spacing:-1px;margin:5px 0 1px;font-variant-numeric:tabular-nums;}
+  .seg .hint{font-size:11.5px;color:var(--muted);}
+  .seg.crit .n{color:var(--c-crit);}  .seg.crit .pip{background:var(--c-crit);}
+  .seg.warn .n{color:var(--c-warn);}  .seg.warn .pip{background:var(--c-warn);}
+  .seg.hot  .n{color:var(--c-hot);}   .seg.hot  .pip{background:var(--c-hot);}
+  .seg.ok   .n{color:var(--c-ok);}    .seg.ok   .pip{background:var(--c-ok);}
+  .seg.watch .n{color:var(--c-watch);} .seg.watch .pip{background:var(--c-watch);}
+
+  .board{display:grid;grid-template-columns:1fr 384px;gap:14px;align-items:start;}
+
+  .list{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .list-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .list-head h3{font-size:13.5px;font-weight:670;}
+  .list-head .count{font-size:11.5px;color:var(--muted);}
+  .tools{margin-left:auto;display:flex;gap:6px;align-items:center;}
+  .search{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:7px;
+          padding:5px 9px;width:150px;background:var(--page);color:var(--ink);}
+  .search::placeholder{color:var(--muted);}
+  .sortbtn{font:inherit;font-size:11.5px;color:var(--ink2);background:var(--page);
+           border:1px solid var(--line);border-radius:7px;padding:5px 9px;cursor:pointer;}
+
+  table.q{width:100%;border-collapse:collapse;}
+  table.q th{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
+             font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);
+             background:var(--panel);}
+  table.q th.r,table.q td.r{text-align:right;}
+  table.q td{padding:9px 10px;border-bottom:1px solid var(--line2);vertical-align:middle;}
+  table.q tbody tr{cursor:pointer;}
+  table.q tbody tr:hover{background:#f6f8f6;}
+  table.q tbody tr.sel{background:var(--c-hot-bg);box-shadow:inset 3px 0 0 var(--accent);}
+  table.q tbody tr:last-child td{border-bottom:none;}
+  .who{display:flex;flex-direction:column;line-height:1.3;}
+  .who b{font-weight:620;font-size:13px;}
+  .who .nim{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+  .co{display:flex;flex-direction:column;line-height:1.3;}
+  .co span{font-size:13px;}
+  .co small{font-size:11px;color:var(--muted);}
+  .stg{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+       padding:2px 8px 2px 6px;border-radius:99px;white-space:nowrap;}
+  .stg .g{font-family:var(--mono);font-size:10px;font-weight:700;}
+  .stg.fu3{background:var(--c-crit-bg);color:var(--c-crit);}
+  .stg.fu2{background:var(--c-warn-bg);color:var(--c-warn);}
+  .stg.fu1{background:var(--c-watch-bg);color:var(--c-watch);}
+  .stg.iv{background:var(--c-hot-bg);color:var(--c-hot);}
+  .stg.gho{background:var(--c-crit-bg);color:var(--c-crit);}
+  .stg.rdy{background:var(--c-ok-bg);color:var(--c-ok);}
+  .age{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;}
+  .age b{font-weight:700;}
+  .age.max{color:var(--c-crit);}
+  .wa{font-family:var(--mono);font-size:11.5px;color:var(--ink2);white-space:nowrap;}
+  .wa a{color:var(--accent);text-decoration:none;font-weight:600;}
+  .foot-list{padding:9px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);
+             display:flex;justify-content:space-between;gap:12px;}
+
+  .detail{background:var(--panel);border:1px solid var(--line);border-radius:12px;position:sticky;top:14px;}
+  .d-head{padding:14px 16px 12px;border-bottom:1px solid var(--line);}
+  .d-head .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);font-weight:670;}
+  .d-head h3{font-size:17px;font-weight:700;margin-top:3px;letter-spacing:-.2px;}
+  .d-head .idrow{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:10px;}
+  .d-body{padding:14px 16px;}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;margin-bottom:14px;}
+  .kv dt{color:var(--muted);}
+  .kv dd{text-align:right;font-weight:560;font-variant-numeric:tabular-nums;}
+  .kv dd.tag{font-weight:600;}
+  .kv dd .ok{color:var(--c-ok);} .kv dd .no{color:var(--c-crit);}
+  .d-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+         font-weight:640;margin:4px 0 8px;padding-top:12px;border-top:1px solid var(--line2);}
+  .multi{display:flex;flex-direction:column;gap:6px;margin-bottom:6px;}
+  .mrow{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--line2);border-radius:8px;font-size:12px;}
+  .mrow.this{border-color:var(--accent);background:var(--c-hot-bg);}
+  .mrow .mco{flex:1;line-height:1.25;}
+  .mrow .mco b{font-weight:600;display:block;}
+  .mrow .mco small{color:var(--muted);font-size:10.5px;}
+  .mrow .mstg{font-size:10.5px;font-weight:650;padding:2px 7px;border-radius:99px;white-space:nowrap;}
+  .mstg.plc{background:var(--c-ok-bg);color:var(--c-ok);}
+  .mstg.gho{background:var(--c-crit-bg);color:var(--c-crit);}
+  .mstg.prc{background:var(--c-hot-bg);color:var(--c-hot);}
+  .callout{font-size:11.5px;line-height:1.5;color:var(--ink2);background:var(--c-watch-bg);
+           border-radius:8px;padding:9px 11px;margin:10px 0 14px;}
+  .callout b{color:var(--ink);}
+  .actions{display:flex;gap:8px;}
+  .btn{flex:1;font:inherit;font-size:12.5px;font-weight:600;padding:9px;border-radius:8px;
+       cursor:pointer;text-align:center;border:1px solid var(--line);background:var(--page);color:var(--ink);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.primary:hover{background:#0c4d53;}
+  .btn:not(.primary):hover{background:#e9ece9;}
+  .d-empty{padding:34px 20px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6;}
+  .d-empty .big{font-size:26px;opacity:.35;display:block;margin-bottom:8px;}
+
+  footer.fm{margin-top:20px;padding-top:12px;border-top:1px solid var(--line);
+            font-size:11px;color:var(--muted);line-height:1.6;}
+  footer.fm b{color:var(--ink2);}
+  .badge-mock{font-size:10px;font-weight:650;letter-spacing:.4px;color:var(--c-warn);
+              background:var(--c-warn-bg);border-radius:99px;padding:2px 9px;}
+
+  @media(max-width:1080px){.board{grid-template-columns:1fr;}.detail{position:static;}
+    .segs{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo"><b>TalentTrack</b><span class="sub">CDC Placement Desk</span></div>
+  </header>
+
+  <nav class="tabs">
+    <a class="on" href="#">Beranda</a>
+    <a href="#">Matching</a>
+    <a href="#">Monitoring</a>
+    <a href="#">Analitik</a>
+  </nav>
+
+  <div class="seg-lead">
+    <h2>Perlu tindakan hari ini</h2>
+    <span>Klik satu kartu untuk memfilter antrean di bawah. Judul, jumlah, dan isi tabel mengikuti kartu yang dipilih.</span>
+  </div>
+  <div class="segs">
+    <button class="seg crit" data-seg="ghosting">
+      <div class="cap"><span class="pip"></span>Ghosting, ambang batas</div>
+      <div class="n">2.905</div>
+      <div class="hint">&gt;4 minggu tanpa respons perusahaan</div>
+    </button>
+    <button class="seg warn" data-seg="fu3">
+      <div class="cap"><span class="pip"></span>FU 3, eskalasi terakhir</div>
+      <div class="n">1.236</div>
+      <div class="hint">satu langkah sebelum ghosting</div>
+    </button>
+    <button class="seg watch" data-seg="fu12">
+      <div class="cap"><span class="pip"></span>FU 1 &amp; 2, menunggu</div>
+      <div class="n">3.719</div>
+      <div class="hint">follow up berjalan, belum tuntas</div>
+    </button>
+    <button class="seg hot" data-seg="interview">
+      <div class="cap"><span class="pip"></span>Interview, dekat placement</div>
+      <div class="n">4.985</div>
+      <div class="hint">Interview User &amp; Final, jangan lepas</div>
+    </button>
+    <button class="seg ok" data-seg="eligible">
+      <div class="cap"><span class="pip"></span>Eligible, belum dikirim</div>
+      <div class="n">651</div>
+      <div class="hint">siap kirim, punya CV, belum diproses</div>
+    </button>
+  </div>
+
+  <div class="board">
+    <div class="list">
+      <div class="list-head">
+        <h3 id="listTitle">Ghosting, ambang batas</h3>
+        <span class="count" id="listCount"></span>
+        <div class="tools">
+          <input class="search" placeholder="Cari NIM / nama / perusahaan">
+          <button class="sortbtn" id="sortBtn">Urut: paling lama</button>
+        </div>
+      </div>
+
+      <table class="q">
+        <thead>
+          <tr>
+            <th>Mahasiswa</th>
+            <th>Perusahaan &amp; posisi</th>
+            <th id="colStage">Tahap</th>
+            <th class="r" id="colAge">Diam</th>
+            <th>Kontak</th>
+          </tr>
+        </thead>
+        <tbody id="qbody"></tbody>
+      </table>
+      <div class="foot-list">
+        <span id="listFoot"></span>
+        <span>Ekspor CSV</span>
+      </div>
+    </div>
+
+    <aside class="detail" id="detail"></aside>
+  </div>
+
+</div>
+
+<script>
+const DATA = {
+  ghosting: {
+    title:"Ghosting, ambang batas", total:2905,
+    foot:"Aktif, &gt;4 minggu tanpa respons perusahaan sejak send_date. Urut: paling lama diam.",
+    rows:[
+      {n:"Dwi Firmansyah",nim:"20231832",co:"CV Global Systems",pos:"Video Editor",st:["gho","GH","Ghosting-risk"],age:799,wa:"0812"},
+      {n:"Rahmat Hakim",nim:"202019004",co:"PT Sinar Abadi",pos:"Admin Staff",age:786,st:["gho","GH","Ghosting-risk"],wa:"0857"},
+      {n:"Siti Lestari",nim:"202211903",co:"CV Mitra Karya",pos:"Content Writer",age:781,st:["gho","GH","Ghosting-risk"],wa:"0821"},
+      {n:"Bayu Nugroho",nim:"202015552",co:"PT Data Prima",pos:"Data Entry",age:774,st:["gho","GH","Ghosting-risk"],wa:"0813"}
+    ]
+  },
+  fu3: {
+    title:"FU 3, eskalasi terakhir", total:1236,
+    foot:"Follow up ketiga, satu langkah sebelum ghosting. Urut: paling lama diam.",
+    rows:[
+      {n:"Dwi Firmansyah",nim:"20231832",co:"CV Global Systems",pos:"Video Editor",st:["fu3","F3","FU 3"],age:799,wa:"0812"},
+      {n:"Maulana Dewi",nim:"202212754",co:"CV Daya Bangsa",pos:"Data Analyst",st:["fu3","F3","FU 3"],age:792,wa:"0878"},
+      {n:"Ahmad Saputra",nim:"202015621",co:"PT Bina Perkasa",pos:"Consultant Intern",st:["fu3","F3","FU 3"],age:789,wa:"0815"}
+    ]
+  },
+  fu12: {
+    title:"FU 1 &amp; 2, menunggu", total:3719,
+    foot:"Follow up pertama dan kedua sedang berjalan. Urut: paling lama diam.",
+    rows:[
+      {n:"Prasetyo Putra",nim:"202110687",co:"PT Bangkit Pratama",pos:"Data Analyst",st:["fu2","F2","FU 2"],age:807,wa:"0813"},
+      {n:"Tasya Wijaya",nim:"202317771",co:"PT Jaya Sentosa",pos:"Accounting Staff",st:["fu2","F2","FU 2"],age:802,wa:"0816"},
+      {n:"Winda Safitri",nim:"202123230",co:"PT Karya Pratama",pos:"Geologist Intern",st:["fu1","F1","FU 1"],age:804,wa:"0815"},
+      {n:"Nadya Handayani",nim:"20214510",co:"PT Bina Sentosa",pos:"IT Support",st:["fu1","F1","FU 1"],age:803,wa:"0856"}
+    ]
+  },
+  interview: {
+    title:"Interview, dekat placement", total:4985,
+    foot:"Interview User &amp; Final Interview, kandidat paling dekat placement. Urut: paling lama diam.",
+    rows:[
+      {n:"Elsa Hidayat",nim:"202114464",co:"PT Sejahtera Logistik",pos:"Customer Success Intern",st:["iv","IV","Interview User"],age:813,wa:"0815"},
+      {n:"Lukman Utami",nim:"202111740",co:"PT Bumi Logistik",pos:"Electrical Engineer Intern",st:["iv","IV","Interview User"],age:810,wa:"0822"},
+      {n:"Cahyo Sulistyo",nim:"202223800",co:"CV Nusa Teknologi",pos:"Research Assistant",st:["iv","FI","Final Interview"],age:797,wa:"0877"},
+      {n:"Kirana Sari",nim:"20230719",co:"PT Techno Gemilang",pos:"Customer Success Intern",st:["iv","FI","Final Interview"],age:792,wa:"0877"}
+    ]
+  },
+  eligible: {
+    title:"Eligible, belum dikirim", total:651, kind:"supply",
+    foot:"Available + punya CV, tapi belum masuk proses seleksi mana pun. Kandidat siap dikirim.",
+    rows:[
+      {n:"Fajar Ramadhan",nim:"202216740",prodi:"Teknik Informatika",ipk:"3.61",dom:"Sleman",st:["rdy","OK","Siap kirim"],wa:"0813"},
+      {n:"Intan Permata",nim:"202118322",prodi:"Akuntansi",ipk:"3.55",dom:"Yogyakarta",st:["rdy","OK","Siap kirim"],wa:"0857"},
+      {n:"Galih Pratama",nim:"202019887",prodi:"Manajemen",ipk:"3.40",dom:"Bantul",st:["rdy","OK","Siap kirim"],wa:"0812"}
+    ]
+  }
+};
+
+const DETAILS = {
+  "202114464":{name:"Elsa Hidayat",sem:6,prodi:"Manajemen",ipk:"3.48",dom:"Sukoharjo",cv:true,pf:false,
+    tools:"Excel, SQL, Canva",
+    procs:[
+      {co:"PT Sejahtera Logistik",pos:"Customer Success Intern",meta:"Interview User, diam 813h",cls:"prc",lbl:"Interview User",this:true},
+      {co:"PT Andalan Niaga",pos:"Business Analyst",meta:"30 Apr 2025",cls:"plc",lbl:"Placement"},
+      {co:"CV Mitra Sejati",pos:"Admin Staff",meta:"Ghosting, diam 640h",cls:"gho",lbl:"Ghosting"}
+    ],
+    callout:"<b>Sudah placed di PT Andalan Niaga.</b> Proses interview di PT Sejahtera kemungkinan tak perlu dikejar. Konfirmasi dulu apakah mahasiswa menerima tawaran, sebelum follow up ke perusahaan."},
+  "20231832":{name:"Dwi Firmansyah",sem:6,prodi:"Ilmu Komunikasi",ipk:"3.22",dom:"Klaten",cv:true,pf:true,
+    tools:"Premiere Pro, After Effects, Canva",
+    procs:[
+      {co:"CV Global Systems",pos:"Video Editor",meta:"FU 3, diam 799h",cls:"gho",lbl:"FU 3",this:true}
+    ],
+    callout:"Hanya satu proses aktif, sudah di FU 3. Jika tidak ada respons setelah kontak ini, tandai ghosting dan tawarkan mahasiswa ke permintaan lain."}
+};
+
+let current="ghosting", sortDesc=true, selected=null;
+
+function stageCell(st){ return `<span class="stg ${st[0]}"><span class="g">${st[1]}</span>${st[2]}</span>`; }
+
+function renderList(seg){
+  const d=DATA[seg]; current=seg;
+  document.getElementById("listTitle").innerHTML=d.title;
+  document.getElementById("listCount").textContent=`menampilkan ${d.rows.length} dari ${d.total.toLocaleString('id-ID')}`;
+  document.getElementById("listFoot").innerHTML=d.foot;
+
+  const supply = d.kind==="supply";
+  document.getElementById("colStage").textContent = supply?"Status":"Tahap";
+  document.getElementById("colAge").textContent = supply?"IPK":"Diam";
+
+  const rows=d.rows.map((r,i)=>{
+    const third = stageCell(r.st);
+    const fourth = supply
+       ? `<td class="r"><span class="age">${r.ipk}</span></td>`
+       : `<td class="r"><span class="age ${i===0?'max':''}"><b>${r.age}</b>h</span></td>`;
+    return `<tr data-nim="${r.nim}">
+      <td><div class="who"><b>${r.n}</b><span class="nim">${r.nim}</span></div></td>
+      <td><div class="co"><span>${supply?r.prodi:r.co}</span><small>${supply?('Domisili '+r.dom):r.pos}</small></div></td>
+      <td>${third}</td>
+      ${fourth}
+      <td class="wa"><a href="#">wa ${r.wa}&hellip;</a></td>
+    </tr>`;
+  }).join("");
+  const body=document.getElementById("qbody");
+  body.innerHTML=rows;
+  body.querySelectorAll("tr").forEach(tr=>{
+    tr.addEventListener("click",()=>{
+      selected=tr.dataset.nim; renderDetail();
+      body.querySelectorAll("tr").forEach(x=>x.classList.remove("sel")); tr.classList.add("sel");
+    });
+  });
+  selected=null; renderDetail();
+}
+
+function renderDetail(){
+  const el=document.getElementById("detail");
+  if(!selected || !DETAILS[selected]){
+    const msg = selected
+      ? "Profil lengkap muncul di sini. (Baris ini belum diisi contoh detail pada mockup.)"
+      : "Pilih satu baris di antrean untuk melihat profil lengkap mahasiswa dan semua proses seleksinya.";
+    el.innerHTML=`<div class="d-empty"><span class="big">&#9776;</span>${msg}</div>`;
+    return;
+  }
+  const d=DETAILS[selected];
+  const procs=d.procs.map(p=>`
+    <div class="mrow ${p.this?'this':''}">
+      <div class="mco"><b>${p.co}</b><small>${p.pos} &middot; ${p.meta}</small></div>
+      <span class="mstg ${p.cls}">${p.lbl}</span>
+    </div>`).join("");
+  el.innerHTML=`
+    <div class="d-head">
+      <div class="eyebrow">Detail kandidat</div>
+      <h3>${d.name}</h3>
+      <div class="idrow"><span>NIM ${selected}</span><span>Semester ${d.sem}</span></div>
+    </div>
+    <div class="d-body">
+      <dl class="kv">
+        <dt>Program studi</dt><dd>${d.prodi}</dd>
+        <dt>IPK</dt><dd>${d.ipk}</dd>
+        <dt>Domisili</dt><dd>${d.dom}</dd>
+        <dt>CV / Portofolio</dt><dd class="tag"><span class="${d.cv?'ok':'no'}">${d.cv?'Ada':'Tidak'}</span> / <span class="${d.pf?'ok':'no'}">${d.pf?'Ada':'Tidak'}</span></dd>
+        <dt>Tools</dt><dd>${d.tools}</dd>
+      </dl>
+      <div class="d-sec">Semua proses mahasiswa ini, ${d.procs.length} perusahaan</div>
+      <div class="multi">${procs}</div>
+      ${d.callout?`<div class="callout">${d.callout}</div>`:''}
+      <div class="actions">
+        <button class="btn primary">Hubungi via WhatsApp</button>
+        <button class="btn">Tandai ditindak</button>
+      </div>
+    </div>`;
+}
+
+document.querySelectorAll(".seg").forEach(s=>{
+  s.addEventListener("click",()=>{
+    document.querySelectorAll(".seg").forEach(x=>x.classList.remove("on"));
+    s.classList.add("on");
+    renderList(s.dataset.seg);
+  });
+});
+document.getElementById("sortBtn").addEventListener("click",function(){
+  sortDesc=!sortDesc; this.textContent = sortDesc?"Urut: paling lama":"Urut: paling baru";
+  const body=document.getElementById("qbody");
+  Array.from(body.querySelectorAll("tr")).reverse().forEach(r=>body.appendChild(r));
+});
+
+document.querySelector('.seg.crit').classList.add('on');
+renderList("ghosting");
+</script>
+</body>
+</html>
