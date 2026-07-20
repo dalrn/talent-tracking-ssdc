@@ -20,7 +20,6 @@ data = clean.clean_data(raw)
 st.sidebar.caption("Data per " + str(data.ANCHOR.date()))
 
 st.title("SSDC Dashboard")
-st.write("Foundation loaded. Pages are under construction.")
 st.write("Rows: company " + str(len(data.company))
          + ", talent_request " + str(len(data.talent_request))
          + ", student_all " + str(len(data.student_all))
