@@ -703,3 +703,213 @@ def segment_sector(tracking_student, tracking_company, company):
         company[["id_company", "industry_sector"]], on="id_company", how="left"
     )["industry_sector"]
     return rate_per_segment(tracking_student, sec, "industry_sector")
+
+
+def _semester_sort_key(label):
+    """Sort key for an academic semester label. Chronological order.
+
+    "Ganjil 2024/2025" sorts before "Genap 2024/2025". Ganjil starts August,
+    Genap starts February of the next calendar year, so Ganjil comes first.
+    """
+    if label is None:
+        return (9999, 9)
+    parts = label.split(" ")
+    term = parts[0]
+    start_year = int(parts[1].split("/")[0])
+    term_rank = 0 if term == "Ganjil" else 1
+    return (start_year, term_rank)
+
+
+# ---------------------------------------------------------------------------
+# 4.14 trend aggregation. Pure reshape, not a definition. The rate uses the
+# same clean base and rejection numerator as success_rate_per_shipment (4.2).
+# ---------------------------------------------------------------------------
+
+def trend_per_period(tracking_student, tracking_company, mode="bulan"):
+    """Volume and conversion rate per period (Section 4.14).
+
+    Process time base is send_date, joined from tracking_company via
+    id_tracking_company. Rate uses the anomaly free base and the
+    rejection == Placement numerator, identical to 4.2. No new definition,
+    only a groupby over time.
+
+    mode "bulan": monthly periods, label like "2024-09".
+    mode "semester": academic semester, label from academic_semester_label.
+
+    Returns a dataframe sorted in chronological order with columns:
+    periode, volume, placement, rate, partial.
+    The last period is marked partial = True (send data stops mid period).
+    Source columns: is_anomali, rejection, tracking_company.send_date.
+    """
+    base = ts_bersih(tracking_student)
+    merged = base.merge(
+        tracking_company[["id_tracking_company", "send_date"]],
+        on="id_tracking_company",
+        how="left",
+    )
+    merged = merged.dropna(subset=["send_date"]).copy()
+
+    if mode == "semester":
+        merged["periode"] = merged["send_date"].map(academic_semester_label)
+        order_keys = sorted(
+            merged["periode"].dropna().unique(), key=_semester_sort_key
+        )
+    else:
+        merged["periode"] = merged["send_date"].dt.to_period("M").astype(str)
+        order_keys = sorted(merged["periode"].dropna().unique())
+
+    merged["is_pl"] = merged["rejection"] == schema.REJ_PLACEMENT
+    grp = merged.groupby("periode")
+    volume = grp.size()
+    placement = grp["is_pl"].sum()
+    out = pd.DataFrame({"volume": volume, "placement": placement})
+    out = out.reindex(order_keys)
+    out["rate"] = out["placement"] / out["volume"]
+    out["partial"] = False
+    if len(out) > 0:
+        # The final period is incomplete: send_date stops mid period.
+        out.iloc[-1, out.columns.get_loc("partial")] = True
+    return out.reset_index().rename(columns={"index": "periode"})
+
+
+# ---------------------------------------------------------------------------
+# Segmentation aggregation (Section 6.4 part 3). Pure groupby, not a
+# definition. Rate uses the same clean base and rejection numerator as 4.2.
+# ---------------------------------------------------------------------------
+
+def rate_per_segment(tracking_student, segment_series, label_name="segmen"):
+    """Placement rate per segment value (Section 6.4 part 3).
+
+    segment_series is a per row label aligned to the clean base rows, for
+    example program_studi joined from status_student, or industry_sector
+    joined from company. Rate uses the anomaly free base and the
+    rejection == Placement numerator, identical to 4.2. Groupby only.
+
+    Returns a dataframe with columns: label_name, n, k, rate, sorted by
+    rate descending. n is shipments in that segment, k is placements.
+    Source columns: is_anomali, rejection, plus the caller supplied segment.
+    """
+    base = ts_bersih(tracking_student)
+    if len(segment_series) != len(base):
+        raise ValueError(
+            "segment_series length must match the clean base row count"
+        )
+    tmp = pd.DataFrame(
+        {
+            "seg": segment_series.values,
+            "is_pl": (base["rejection"] == schema.REJ_PLACEMENT).values,
+        }
+    )
+    grp = tmp.groupby("seg")
+    out = pd.DataFrame({"n": grp.size(), "k": grp["is_pl"].sum()})
+    out["rate"] = out["k"] / out["n"]
+    out = out.sort_values("rate", ascending=False).reset_index()
+    return out.rename(columns={"seg": label_name})
+
+
+def segment_program(tracking_student, status_student):
+    """Placement rate per student program (Section 6.4 part 3).
+
+    Joins the clean base NIM to status_student.program_studi, then groups.
+    Returns the rate_per_segment dataframe keyed "program_studi".
+    Source columns: NIM, status_student.program_studi, rejection, is_anomali.
+    """
+    base = ts_bersih(tracking_student)
+    prog = base.merge(
+        status_student[["NIM", "program_studi"]], on="NIM", how="left"
+    )["program_studi"]
+    return rate_per_segment(tracking_student, prog, "program_studi")
+
+
+def segment_sector(tracking_student, tracking_company, company):
+    """Placement rate per company industry sector (Section 6.4 part 3).
+
+    Joins the clean base to tracking_company for id_company, then to company
+    for industry_sector, then groups.
+    Returns the rate_per_segment dataframe keyed "industry_sector".
+    Source columns: id_tracking_company, id_company, company.industry_sector,
+    rejection, is_anomali.
+    """
+    base = ts_bersih(tracking_student)
+    sec = base.merge(
+        tracking_company[["id_tracking_company", "id_company"]],
+        on="id_tracking_company",
+        how="left",
+    ).merge(
+        company[["id_company", "industry_sector"]], on="id_company", how="left"
+    )["industry_sector"]
+    return rate_per_segment(tracking_student, sec, "industry_sector")
+
+# ---------------------------------------------------------------------------
+# 4.15 Ghosting rate per company. New metric for Monitoring tab Perusahaan.
+# Mirrors company_league() (Section 4.11) but numerator is ghosting, not
+# placement. Two variants: all reported ghosting, and murni_perusahaan only
+# (from klasifikasi_ghosting). Both use n = shipments per company on the
+# anomaly free base, same denominator convention as company_league.
+# ---------------------------------------------------------------------------
+
+def ghosting_rate_per_company(tracking_student, min_n=config.MIN_N_RANKING):
+    """Per company ghosting rate, all reported ghosting (Section 4.15a).
+
+    n = shipments per company, on the anomaly free base. k = ghosting rows
+    per company, using the reporting definition (rejection == Ghosting).
+    Rows with n < min_n get lolos_gate False, same convention as
+    company_league.
+    Source columns: company, rejection, is_anomali.
+    """
+    base = ts_bersih(tracking_student)
+    grp = base.groupby("company")
+    n = grp.size()
+    k = grp.apply(lambda g: int((g["rejection"] == schema.REJ_GHOSTING).sum()))
+    out = pd.DataFrame({"n": n, "k": k})
+    out["rate"] = out["k"] / out["n"]
+    out["lolos_gate"] = out["n"] >= min_n
+    return out.reset_index()
+
+
+def ghosting_rate_per_company_murni(tracking_student, min_n=config.MIN_N_RANKING):
+    """Per company ghosting rate, murni_perusahaan cases only (Section 4.15b).
+
+    Same n (shipments per company on the anomaly free base) as the all
+    ghosting variant, so the two rates are directly comparable side by side.
+    k = rows classified murni_perusahaan by klasifikasi_ghosting(), using
+    the reporting mask as the ghosting context (aggregate view, not the
+    operational queue).
+    Source columns: company, rejection, is_anomali, last_update, NIM
+    (via klasifikasi_ghosting).
+    """
+    base = ts_bersih(tracking_student)
+    n = base.groupby("company").size()
+
+    klas = klasifikasi_ghosting(tracking_student, ghosting_mask=ghosting_reporting_mask(tracking_student))
+    murni = klas[klas["tipe_ghosting"] == "murni_perusahaan"]
+    k = murni.groupby("company").size()
+
+    out = pd.DataFrame({"n": n, "k": k}).fillna({"k": 0})
+    out["k"] = out["k"].astype(int)
+    out["rate"] = out["k"] / out["n"]
+    out["lolos_gate"] = out["n"] >= min_n
+    return out.reset_index()
+
+
+# ---------------------------------------------------------------------------
+# 4.16 Worst single offender, absolute count. Supports the "tersebar, bukan
+# segelintir pelaku" claim: even the top company is a small absolute number.
+# ---------------------------------------------------------------------------
+
+def max_ghosting_case_company(tracking_student, min_n=config.MIN_N_RANKING):
+    """Company with the highest absolute ghosting count (Section 4.16).
+
+    Gated the same way as ghosting_rate_per_company, so a single company
+    with tiny n cannot appear here from a fluke. Uses the all-ghosting
+    variant (not murni_perusahaan only), since the claim is about total
+    ghosting concentration, not attribution. Returns (company_name, k).
+    Returns (None, 0) if no company passes the gate.
+    Source columns: company, rejection, is_anomali.
+    """
+    league = ghosting_rate_per_company(tracking_student, min_n)
+    gated = league[league["lolos_gate"]]
+    if gated.empty:
+        return None, 0
+    row = gated.loc[gated["k"].idxmax()]
+    return row["company"], int(row["k"])
