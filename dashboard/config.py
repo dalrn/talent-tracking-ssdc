@@ -45,7 +45,7 @@ SYNC_SLIDER_DEFAULT = 30
 # Ganjil = August to January. Genap = February to July.
 SEMESTER_GANJIL_BULAN = [8, 9, 10, 11, 12, 1]
 
-# Palette from the mockup.
+# Palette.
 WARNA = {
     "accent": "#0f5f66",
     "crit": "#b42318", "crit_bg": "#fdeceb",
