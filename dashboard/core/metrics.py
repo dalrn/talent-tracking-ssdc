@@ -567,3 +567,77 @@ def academic_semester_label(ts_date):
     # the previous August.
     start_year = year - 1
     return "Genap " + str(start_year) + "/" + str(start_year + 1)
+
+# ---------------------------------------------------------------------------
+# 4.15 Ghosting rate per company. New metric for Monitoring tab Perusahaan.
+# Mirrors company_league() (Section 4.11) but numerator is ghosting, not
+# placement. Two variants: all reported ghosting, and murni_perusahaan only
+# (from klasifikasi_ghosting). Both use n = shipments per company on the
+# anomaly free base, same denominator convention as company_league.
+# ---------------------------------------------------------------------------
+
+def ghosting_rate_per_company(tracking_student, min_n=config.MIN_N_RANKING):
+    """Per company ghosting rate, all reported ghosting (Section 4.15a).
+
+    n = shipments per company, on the anomaly free base. k = ghosting rows
+    per company, using the reporting definition (rejection == Ghosting).
+    Rows with n < min_n get lolos_gate False, same convention as
+    company_league.
+    Source columns: company, rejection, is_anomali.
+    """
+    base = ts_bersih(tracking_student)
+    grp = base.groupby("company")
+    n = grp.size()
+    k = grp.apply(lambda g: int((g["rejection"] == schema.REJ_GHOSTING).sum()))
+    out = pd.DataFrame({"n": n, "k": k})
+    out["rate"] = out["k"] / out["n"]
+    out["lolos_gate"] = out["n"] >= min_n
+    return out.reset_index()
+
+
+def ghosting_rate_per_company_murni(tracking_student, min_n=config.MIN_N_RANKING):
+    """Per company ghosting rate, murni_perusahaan cases only (Section 4.15b).
+
+    Same n (shipments per company on the anomaly free base) as the all
+    ghosting variant, so the two rates are directly comparable side by side.
+    k = rows classified murni_perusahaan by klasifikasi_ghosting(), using
+    the reporting mask as the ghosting context (aggregate view, not the
+    operational queue).
+    Source columns: company, rejection, is_anomali, last_update, NIM
+    (via klasifikasi_ghosting).
+    """
+    base = ts_bersih(tracking_student)
+    n = base.groupby("company").size()
+
+    klas = klasifikasi_ghosting(tracking_student, ghosting_mask=ghosting_reporting_mask(tracking_student))
+    murni = klas[klas["tipe_ghosting"] == "murni_perusahaan"]
+    k = murni.groupby("company").size()
+
+    out = pd.DataFrame({"n": n, "k": k}).fillna({"k": 0})
+    out["k"] = out["k"].astype(int)
+    out["rate"] = out["k"] / out["n"]
+    out["lolos_gate"] = out["n"] >= min_n
+    return out.reset_index()
+
+
+# ---------------------------------------------------------------------------
+# 4.16 Worst single offender, absolute count. Supports the "tersebar, bukan
+# segelintir pelaku" claim: even the top company is a small absolute number.
+# ---------------------------------------------------------------------------
+
+def max_ghosting_case_company(tracking_student, min_n=config.MIN_N_RANKING):
+    """Company with the highest absolute ghosting count (Section 4.16).
+
+    Gated the same way as ghosting_rate_per_company, so a single company
+    with tiny n cannot appear here from a fluke. Uses the all-ghosting
+    variant (not murni_perusahaan only), since the claim is about total
+    ghosting concentration, not attribution. Returns (company_name, k).
+    Returns (None, 0) if no company passes the gate.
+    Source columns: company, rejection, is_anomali.
+    """
+    league = ghosting_rate_per_company(tracking_student, min_n)
+    gated = league[league["lolos_gate"]]
+    if gated.empty:
+        return None, 0
+    row = gated.loc[gated["k"].idxmax()]
+    return row["company"], int(row["k"])
