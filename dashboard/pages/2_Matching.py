@@ -52,7 +52,7 @@ def search_request(searchterm):
     )
     return draft_req.loc[mask,"label"].tolist()
 
-c1_cols = [ 'nama_perusahaan', 'posisi', 'jenis_penempatan', 'bidang_studi_dicari_list', 
+c1_cols = [ 'nama_perusahaan', 'posisi',
            'jumlah_permintaan', 'jumlah_dikirimkan', "days_left"
            ]
 # design kolom 1
@@ -76,14 +76,16 @@ with c1:
 
         # filterbox
         option = st.selectbox("Urutkan",
-                              ["Terbaru", "Terlama", "Mahasiswa Dibutuhkan"],
+                              ["Terbaru", "Terlama", "Mahasiswa Dibutuhkan (min)", "Mahasiswa Dibutuhkan (max)"],
                               key = "req_sort")
         if option == "Terbaru":
             req_sorted = draft_req.sort_values("request_date", ascending = False)
         elif option == "Terlama":
-             req_sorted = draft_req.sort_values("request_date", ascending = True)
+            req_sorted = draft_req.sort_values("request_date", ascending = True)
+        elif option == "Mahasiswa Dibutuhkan (min)":
+            req_sorted = draft_req.sort_values("jumlah_permintaan", ascending = True) 
         else:
-            req_sorted = draft_req.sort_values("jumlah_permintaan", ascending = True)
+            req_sorted = draft_req.sort_values("jumlah_permintaan", ascending = False)
 
         # masuk css html nanti yang kepilih dikaish warna highlight
         if selected:
@@ -129,7 +131,7 @@ with c2:
             st.subheader(req["id_talent_req"])
             st.title(req['posisi'])
             st.markdown(req['nama_perusahaan'] + "")
-            st.markdown(tr_req['renumerasi'])
+            st.markdown("Kompensasi: " + tr_req['renumerasi'])
             st.markdown("Durasi penempatan: " + tr_req["durasi"])
 
             # magang, 3 orang (x terpilih), hybrid, yogyakarta, min sems. bawahnya tools, prodi, min ipk
@@ -144,7 +146,7 @@ with c2:
             with c4:
                 st.markdown(co_req["kota"])
             with c5:
-                st.markdown("min. semester" + str(tr_req['minimum_semester']))
+                st.markdown("min. semester " + str(tr_req['minimum_semester']))
             with c6:
                 st.markdown("Program studi sesuai: ")  
                 st.pills(
@@ -155,12 +157,15 @@ with c2:
 
             st.markdown("Kriteria diperlukan: " + tr_req['deskripsi_requirement']) 
 
-               
+
+    """
+    INI BAGIAN MATCHING SEBENTAR BINGUNG INIANNYA
+    """
     with st.container(height = 300):
         st.markdown("ringkasan hasil matching")
         ...
     with st.container(height = 800):
-        st.markdown("talent")
+        st.markdown("talent option")
         ...
 
 
