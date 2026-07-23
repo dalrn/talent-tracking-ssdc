@@ -46,13 +46,6 @@ st.title("Analitik")
 st.caption("Ringkasan kinerja program untuk pimpinan. Data per "
            + str(data.ANCHOR.date()) + ".")
 
-
-# ===========================================================================
-# PART 1. Dual success rate. The headline, top and largest.
-# ===========================================================================
-
-st.markdown("## 1. Tingkat keberhasilan")
-
 rate_shipment = metrics.success_rate_per_shipment(ts)
 n_placement = int(metrics.is_placement_success(metrics.ts_bersih(ts)).sum())
 n_base = len(metrics.ts_bersih(ts))
@@ -61,15 +54,38 @@ num_student = metrics.success_numerator_per_student(ts)
 den_student = metrics.success_denominator_per_student(ts)
 rate_student = metrics.success_rate_per_student(ts)
 
-# TODO(andalan): pick headline. Both cards are built equally for now.
-c1, c2, c3 = st.columns([1, 1, 1])
+# Verdict line. Fact summary only, not a judgment. Every clause restates a
+# number shown on this page. It names coverage (mahasiswa yang disalurkan CDC)
+# so 57 percent is not read as a share of all 25.000 students.
+st.markdown(
+    H.callout(
+        str(num_student) + " mahasiswa berhasil ditempatkan. Dihitung dari "
+        "mahasiswa yang disalurkan CDC, tingkat keberhasilannya "
+        + str(round(rate_student * 100, 1)) + " persen. Tingkat keberhasilan "
+        "stabil sepanjang periode dan merata di semua program studi.",
+        kind="accent", title="Ringkasan",
+    ),
+    unsafe_allow_html=True,
+)
+
+
+# ===========================================================================
+# PART 1. Dual success rate. Headline is per-student. Per-shipment is secondary.
+# ===========================================================================
+
+st.markdown("## Seberapa berhasil program ini")
+
+# Headline is per-student (keputusan tim). Per-shipment is the secondary,
+# operational efficiency angle, shown smaller beside it.
+c1, c2, c3 = st.columns([1.2, 1, 1.3])
 
 with c1:
     st.markdown(
         H.kpi_card(
-            "Keberhasilan per pengiriman",
-            str(round(rate_shipment * 100, 1)) + "%",
-            str(n_placement) + " placement dari " + str(n_base) + " pengiriman",
+            "Keberhasilan per mahasiswa",
+            str(round(rate_student * 100, 1)) + "%",
+            str(num_student) + " mahasiswa ditempatkan, dari "
+            + str(den_student) + " mahasiswa yang disalurkan CDC",
             accent=WARNA["accent"], big=True,
         ),
         unsafe_allow_html=True,
@@ -78,11 +94,11 @@ with c1:
 with c2:
     st.markdown(
         H.kpi_card(
-            "Keberhasilan per mahasiswa",
-            str(round(rate_student * 100, 1)) + "%",
-            str(num_student) + " mahasiswa placement dari " + str(den_student)
-            + " mahasiswa dikirim",
-            accent=WARNA["accent"], big=True,
+            "Keberhasilan per pengiriman",
+            str(round(rate_shipment * 100, 1)) + "%",
+            str(n_placement) + " placement dari " + str(n_base)
+            + " pengiriman",
+            accent=WARNA["ink2"], big=False,
         ),
         unsafe_allow_html=True,
     )
@@ -90,10 +106,11 @@ with c2:
 with c3:
     st.markdown(
         H.callout(
-            "Angka per pengiriman menghitung tiap proses. Angka per mahasiswa "
-            "menghitung tiap orang. Satu mahasiswa bisa dikirim ke banyak "
-            "perusahaan dan berhasil di salah satunya, jadi angka per mahasiswa "
-            "lebih tinggi. Keduanya benar, sudut pandangnya berbeda.",
+            "Angka per mahasiswa menghitung tiap orang. Angka per pengiriman "
+            "menghitung tiap proses kirim. Tiap mahasiswa memang sengaja "
+            "dikirim ke banyak perusahaan dan cukup berhasil di salah satunya, "
+            "jadi angka per pengiriman wajar lebih kecil. Keduanya benar, "
+            "sudut pandangnya berbeda.",
             kind="accent", title="Kenapa dua angka ini berbeda",
         ),
         unsafe_allow_html=True,
@@ -104,11 +121,13 @@ with c3:
 # PART 2. Time trend (BT-07). Volume bars + rate line, dual axis.
 # ===========================================================================
 
-st.markdown("## 2. Tren waktu")
+st.markdown("## Tren dari waktu ke waktu")
 
+# Default to Per semester: 5 bars read faster than 25 monthly bars. Bulanan
+# stays available for a closer look.
 mode_label = st.radio(
     "Periode",
-    ["Bulanan", "Per semester"],
+    ["Per semester", "Bulanan"],
     horizontal=True,
     key="trend_mode",
 )
@@ -175,7 +194,7 @@ st.markdown(
 # PART 3. Segmentation. Rate per program and per sector. Bars from zero.
 # ===========================================================================
 
-st.markdown("## 3. Segmentasi")
+st.markdown("## Perbandingan antar segmen")
 
 overall_rate = rate_shipment  # the overall average reference line
 
@@ -256,7 +275,7 @@ st.markdown(
 # PART 4. Full company league (BT-04). Wilson CI table, gate n >= 30.
 # ===========================================================================
 
-st.markdown("## 4. Liga perusahaan")
+st.markdown("## Perusahaan mitra")
 
 league = metrics.company_league(ts)
 gate_count = metrics.company_league_gate_count(ts)
@@ -323,7 +342,7 @@ st.caption("Menampilkan 25 baris teratas sesuai urutan. Titik = center Wilson, "
 # PART 5. BT-08. Drift badge + sync freshness slider.
 # ===========================================================================
 
-st.markdown("## 5. Kesehatan data (BT-08)")
+st.markdown("## Kesehatan data")
 
 drift = metrics.drift_student_all_vs_status(sa, ss)
 drift_total = sum(drift.values())
@@ -379,7 +398,7 @@ with b2:
 # PART 6. Scope and data quality notes. One honest text block.
 # ===========================================================================
 
-st.markdown("## 6. Catatan cakupan dan kualitas data")
+st.markdown("## Catatan cakupan dan kualitas data")
 
 n_luar = len(metrics.placed_diluar_cakupan(ss, ts))
 n_anom = int(ts["is_anomali"].sum())
