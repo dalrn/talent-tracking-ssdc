@@ -63,6 +63,12 @@ REJ_GATE_MAP = {
     STAGE_FINAL: REJ_FINAL,
 }
 
+# Terminal stages: progress_student values where a process has already
+# resolved (placed, rejected, or archived). Everything else - including
+# FU1/FU2/FU3/Ghosting, which are still active-but-stalled - counts as
+# "open" for response-time metrics (Section 6.3, OWNER-DECIDED: Afrizal).
+STAGE_TERMINAL = {STAGE_PLACEMENT, STAGE_REJECTED, STAGE_FINISH}
+
 # The 18 programs (closed set) grouped into 6 fallback clusters (Section 5.3).
 # The cluster is used ONLY as a Matching fallback when exact candidates run short.
 PRODI_CLUSTER = {

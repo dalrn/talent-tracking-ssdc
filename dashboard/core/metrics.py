@@ -254,121 +254,7 @@ def orphan_talent_req(talent_request, tracking_company):
     tc_ids = set(tracking_company["id_talent_req"].dropna())
     return len(tr_ids - tc_ids), len(tc_ids - tr_ids)
 
-
-# ---------------------------------------------------------------------------
-# 4.9 Weighted Matching score (BT-01).
-# ---------------------------------------------------------------------------
-
-def matching_gate(status_student, minimum_semester):
-    """Hard gate mask before scoring (Section 4.9).
-
-    Keep only Available students at or above the request minimum semester.
-    Filter first, then score. Never score everyone per slider move.
-    Source columns: ketersediaan, semester.
-    """
-    avail = status_student["ketersediaan"] == schema.AVAIL_AVAILABLE
-    if minimum_semester is None or pd.isna(minimum_semester):
-        return avail
-    sem_ok = status_student["semester"] >= minimum_semester
-    return avail & sem_ok
-
-
-def _skor_prodi(program_studi, prodi_list, cluster_fallback=False):
-    """Prodi component, 0 to 1 (Section 4.9).
-
-    1 if the student program is in the request list. If cluster fallback is on,
-    0.5 for a same cluster match. Else 0.
-    """
-    if program_studi in prodi_list:
-        return 1.0
-    if cluster_fallback:
-        want_clusters = {
-            schema.PRODI_TO_CLUSTER.get(p) for p in prodi_list
-        }
-        if schema.PRODI_TO_CLUSTER.get(program_studi) in want_clusters:
-            return 0.5
-    return 0.0
-
-
-def _skor_tools(tools_list, tools_dibutuhkan):
-    """Tools component, 0 to 1 (Section 4.9).
-
-    Share of request tools the student has. If no tools required, treat as 1.
-    """
-    if not tools_dibutuhkan:
-        return 1.0
-    have = set(tools_list or [])
-    want = set(tools_dibutuhkan)
-    return len(have & want) / len(want)
-
-
-def _skor_ipk(ipk, ipk_min=None):
-    """IPK component, 0 to 1 (Section 4.9).
-
-    Normalized as min(IPK/4.0, 1). Below a stated request minimum gives 0.
-    """
-    if ipk is None or pd.isna(ipk):
-        return 0.0
-    if ipk_min is not None and not pd.isna(ipk_min) and ipk < ipk_min:
-        return 0.0
-    return min(ipk / 4.0, 1.0)
-
-
-def _skor_domisili(domisili, kota, working_arrangement):
-    """Domisili component, 0 to 1 (Section 4.9).
-
-    1 if student domicile equals the company city. Active only when the
-    working arrangement is WFO or Hybrid. Returns None when inactive so the
-    caller can drop its weight.
-    """
-    if working_arrangement not in schema.WA_DOMISILI_ACTIVE:
-        return None
-    return 1.0 if (domisili is not None and domisili == kota) else 0.0
-
-
-def hitung_skor_matching(
-    program_studi,
-    tools_list,
-    ipk,
-    domisili,
-    prodi_list,
-    tools_dibutuhkan,
-    kota,
-    working_arrangement,
-    bobot=None,
-    ipk_min=None,
-    cluster_fallback=False,
-):
-    """Weighted match score, 0 to 100 (Section 4.9).
-
-    Score = 100 * sum(weight_i * component_i) / sum(active weights).
-    Domisili is dropped from both sums when the arrangement is WFH.
-    Weights come from config.BOBOT_DEFAULT by default; sliders override.
-    Returns a dict with the score and the per component breakdown.
-    """
-    if bobot is None:
-        bobot = config.BOBOT_DEFAULT
-
-    komponen = {
-        "prodi": _skor_prodi(program_studi, prodi_list, cluster_fallback),
-        "tools": _skor_tools(tools_list, tools_dibutuhkan),
-        "ipk": _skor_ipk(ipk, ipk_min),
-        "domisili": _skor_domisili(domisili, kota, working_arrangement),
-    }
-
-    total_bobot = 0.0
-    total_nilai = 0.0
-    for nama, nilai in komponen.items():
-        if nilai is None:
-            # Inactive component (domisili on a WFH request). Drop its weight.
-            continue
-        w = bobot[nama]
-        total_bobot += w
-        total_nilai += w * nilai
-
-    skor = 100.0 * total_nilai / total_bobot if total_bobot > 0 else 0.0
-    return {"skor": skor, "komponen": komponen, "bobot_aktif": total_bobot}
-
+# 4.9 aku pindahkan ke matching engine
 
 # ---------------------------------------------------------------------------
 # 4.10 Discrepancies and documented assumptions. Report material.
@@ -913,3 +799,43 @@ def max_ghosting_case_company(tracking_student, min_n=config.MIN_N_RANKING):
         return None, 0
     row = gated.loc[gated["k"].idxmax()]
     return row["company"], int(row["k"])
+
+
+# ---------------------------------------------------------------------------
+# 4.17 Waktu-respons per perusahaan (Section 6.3 tab Perusahaan, point 3,
+# OWNER-DECIDED: Afrizal). Time basis is send_date, not last_update: Section
+# 4.5's FU/Ghosting escalation ladder is the project's established clock for
+# "company hasn't responded yet", and that clock runs on send_date via
+# tracking_company (join pattern per Section 4.5/4.14), not on idle_days()
+# (Section 4.7), which measures last_update staleness for Beranda queue
+# order and mixes in CDC-side touches, not only the company side.
+# ---------------------------------------------------------------------------
+
+def response_time_per_company(tracking_student, tracking_company, anchor,
+                                min_n=config.MIN_N_RANKING):
+    """Average days since send_date for each company's open processes.
+
+    "Open" = progress_student not in schema.STAGE_TERMINAL (Placement,
+    Rejected, Finish already resolved; FU1/FU2/FU3/Ghosting still open and
+    waiting). send_date is joined in from tracking_company via
+    id_tracking_company. Grouped by company: n = open process count,
+    avg_response_days = mean age among those rows. Gated like
+    company_league (n >= min_n gets lolos_gate True). A company only
+    appears if it has at least one open row with a resolved send_date
+    (Draft requests have no send_date and are dropped before the groupby),
+    so there is no NaN or zero-division case to guard.
+    Source columns: progress_student, company, id_tracking_company,
+    tracking_company.send_date.
+    """
+    open_mask = ~tracking_student["progress_student"].isin(schema.STAGE_TERMINAL)
+    open_df = tracking_student[open_mask].merge(
+        tracking_company[["id_tracking_company", "send_date"]],
+        on="id_tracking_company", how="left",
+    )
+    open_df = open_df.dropna(subset=["send_date"]).copy()
+    open_df["response_days"] = (anchor - open_df["send_date"]).dt.days
+
+    grp = open_df.groupby("company")["response_days"]
+    out = pd.DataFrame({"n": grp.size(), "avg_response_days": grp.mean()})
+    out["lolos_gate"] = out["n"] >= min_n
+    return out.reset_index()
