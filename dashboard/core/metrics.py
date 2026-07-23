@@ -913,3 +913,43 @@ def max_ghosting_case_company(tracking_student, min_n=config.MIN_N_RANKING):
         return None, 0
     row = gated.loc[gated["k"].idxmax()]
     return row["company"], int(row["k"])
+
+
+# ---------------------------------------------------------------------------
+# 4.17 Waktu-respons per perusahaan (Section 6.3 tab Perusahaan, point 3,
+# OWNER-DECIDED: Afrizal). Time basis is send_date, not last_update: Section
+# 4.5's FU/Ghosting escalation ladder is the project's established clock for
+# "company hasn't responded yet", and that clock runs on send_date via
+# tracking_company (join pattern per Section 4.5/4.14), not on idle_days()
+# (Section 4.7), which measures last_update staleness for Beranda queue
+# order and mixes in CDC-side touches, not only the company side.
+# ---------------------------------------------------------------------------
+
+def response_time_per_company(tracking_student, tracking_company, anchor,
+                                min_n=config.MIN_N_RANKING):
+    """Average days since send_date for each company's open processes.
+
+    "Open" = progress_student not in schema.STAGE_TERMINAL (Placement,
+    Rejected, Finish already resolved; FU1/FU2/FU3/Ghosting still open and
+    waiting). send_date is joined in from tracking_company via
+    id_tracking_company. Grouped by company: n = open process count,
+    avg_response_days = mean age among those rows. Gated like
+    company_league (n >= min_n gets lolos_gate True). A company only
+    appears if it has at least one open row with a resolved send_date
+    (Draft requests have no send_date and are dropped before the groupby),
+    so there is no NaN or zero-division case to guard.
+    Source columns: progress_student, company, id_tracking_company,
+    tracking_company.send_date.
+    """
+    open_mask = ~tracking_student["progress_student"].isin(schema.STAGE_TERMINAL)
+    open_df = tracking_student[open_mask].merge(
+        tracking_company[["id_tracking_company", "send_date"]],
+        on="id_tracking_company", how="left",
+    )
+    open_df = open_df.dropna(subset=["send_date"]).copy()
+    open_df["response_days"] = (anchor - open_df["send_date"]).dt.days
+
+    grp = open_df.groupby("company")["response_days"]
+    out = pd.DataFrame({"n": grp.size(), "avg_response_days": grp.mean()})
+    out["lolos_gate"] = out["n"] >= min_n
+    return out.reset_index()

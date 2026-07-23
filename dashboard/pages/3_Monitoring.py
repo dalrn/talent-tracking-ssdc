@@ -21,10 +21,8 @@ import core  # noqa: F401
 import config
 import schema
 from core import loader, clean, metrics
-from components import html as H
-
+import components.html as H
 WARNA = config.WARNA
-
 
 # ---------------------------------------------------------------------------
 # Data. Loaded and cleaned once by the cached loader.
@@ -176,39 +174,104 @@ with tab_mahasiswa:
         )
 
     # =======================================================================
-    # 3. Performa perusahaan (ringkas). Analisis penuh ada di Analitik.
+    # 2. Performa perusahaan (ringkas). Analisis penuh ada di Analitik.
+    # Single scrollable, sortable list (Wilson CI per company) replaces the
+    # old top5/bottom5 side-by-side tables. league = metrics.company_league()
+    # is the only source of n/k/rate/wilson_*; jenis_penempatan and
+    # industry_sector below are descriptive lookups only, not metrics.
     # =======================================================================
-    st.markdown("## 2. Performa perusahaan (ringkas)")
+    st.markdown("## 2. Overview Performa Perusahaan")
     st.caption("Versi operasional ringkas. Analisis penuh ada di halaman "
                "Analitik.")
 
     league = metrics.company_league(ts_filtered, min_n=config.MIN_N_RANKING)
-    top5 = league.sort_values("rate", ascending=False).head(5)
-    bottom5 = league.sort_values("rate", ascending=True).head(5)
+    gate_count = metrics.company_league_gate_count(ts_filtered, min_n=config.MIN_N_RANKING)
 
-    def _league_table(df):
-        columns = ["Perusahaan", "Kirim", "Placement", "Rate"]
-        align = ["left", "right", "right", "right"]
-        rows = []
-        for _, r in df.iterrows():
-            perusahaan = H._esc(r["company"])
-            if not r["lolos_gate"]:
-                perusahaan = perusahaan + " " + H.badge("n kecil", "warn")
-            rows.append([
-                perusahaan,
-                int(r["n"]),
-                int(r["k"]),
-                str(round(r["rate"] * 100, 1)) + "%",
-            ])
-        return H.read_only_table(columns, rows, align=align, raw_html_cols={0})
+    # Descriptive lookups for the row subtitle. Not metrics: no rate or count
+    # is computed here, only the most common jenis_penempatan per company
+    # (a company can span several shipments with different values) and the
+    # industry_sector joined from the raw company table by name.
+    jenis_lookup = ts_filtered.groupby("company")["jenis_penempatan"].agg(
+        lambda s: s.mode().iat[0] if not s.mode().empty else ""
+    )
+    sektor_lookup = data.company.set_index("company_name")["industry_sector"]
 
-    col_top, col_bottom = st.columns(2)
-    with col_top:
-        st.markdown("### Tertinggi")
-        st.markdown(_league_table(top5), unsafe_allow_html=True)
-    with col_bottom:
-        st.markdown("### Terendah")
-        st.markdown(_league_table(bottom5), unsafe_allow_html=True)
+    def _subtitle(company_name):
+        jenis = jenis_lookup.get(company_name, "") or "-"
+        sektor = sektor_lookup.get(company_name, "") or "-"
+        return jenis + " · " + sektor
+
+    def _company_row(row):
+        kirim = H._fmt_id(int(row["n"]))
+        if not row["lolos_gate"]:
+            kirim = kirim + " " + H.badge("n kecil", "warn")
+        # ci_width is the full Wilson band (hi - lo), shown as-is in points.
+        ci_pct = round(row["ci_width"] * 100)
+        rate_text = str(round(row["rate"] * 100, 1)) + "% ±" + str(ci_pct)
+        band_html = H.ci_band_cell(
+            row["wilson_lo"], row["wilson_center"], row["wilson_hi"], width_px=120
+        )
+        return (
+            '<div style="display:flex;align-items:center;gap:14px;'
+            'padding:9px 6px;border-bottom:1px solid ' + WARNA["line"] + ';">'
+            + '<div style="flex:1;min-width:0;">'
+            + '<div style="font-weight:700;color:' + WARNA["ink"]
+            + ';font-size:0.88rem;white-space:nowrap;overflow:hidden;'
+            + 'text-overflow:ellipsis;">' + H._esc(row["company"]) + '</div>'
+            + '<div style="color:' + WARNA["muted"] + ';font-size:0.74rem;'
+            + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+            + H._esc(_subtitle(row["company"])) + '</div>'
+            + '</div>'
+            + '<div style="min-width:76px;text-align:right;font-size:0.8rem;'
+            + 'color:' + WARNA["ink2"] + ';white-space:nowrap;">' + kirim + '</div>'
+            + '<div>' + band_html + '</div>'
+            + '<div style="min-width:92px;text-align:right;font-weight:600;'
+            + 'color:' + WARNA["ink"] + ';font-size:0.82rem;white-space:nowrap;">'
+            + rate_text + '</div>'
+            + '</div>'
+        )
+
+    col_title, col_count, col_toggle = st.columns([3, 2, 1.5])
+    with col_title:
+        st.markdown("#### Acceptance per perusahaan")
+    with col_count:
+        st.markdown(
+            '<div style="padding-top:12px;color:' + WARNA["ink2"]
+            + ';font-size:0.85rem;">' + H._fmt_id(gate_count)
+            + ' perusahaan, n≥' + str(config.MIN_N_RANKING) + '</div>',
+            unsafe_allow_html=True,
+        )
+    with col_toggle:
+        sort_mode = st.radio(
+            "Urutkan", ["Tertinggi", "Terendah"], horizontal=True,
+            key="perusahaan_sort_toggle", label_visibility="collapsed",
+        )
+
+    # Recap only: top 5 by the active sort direction, not the full league.
+    top5_league = league.sort_values(
+        "rate", ascending=(sort_mode == "Terendah")
+    ).head(5).reset_index(drop=True)
+
+    for _, row in top5_league.iterrows():
+        st.markdown(_company_row(row), unsafe_allow_html=True)
+
+    # Dynamic example, computed not hardcoded: widest vs narrowest CI band
+    # among companies that pass the sample size gate. to_dict() turns the row
+    # into plain scalars so int()/round() aren't fed a pandas Scalar union.
+    widest = league.loc[league["ci_width"].idxmax()].to_dict()
+    gated = league[league["lolos_gate"]]
+    narrowest = (
+        gated.loc[gated["ci_width"].idxmin()].to_dict() if not gated.empty else widest
+    )
+    st.caption(
+        "Titik = acceptance rate; pita = selang kepercayaan 95% (Wilson). "
+        "Pita lebar = sampel kecil, ranking belum bisa dipercaya. Contoh: "
+        + str(widest["company"]) + " (n=" + str(int(widest["n"]))
+        + ") punya pita ±" + str(round(widest["ci_width"] * 100))
+        + ", sedangkan " + str(narrowest["company"]) + " (n="
+        + str(int(narrowest["n"])) + ") punya pita ±"
+        + str(round(narrowest["ci_width"] * 100)) + "."
+    )
 
 # =============================================================================
 # TAB 2 — PERUSAHAAN (owner-decided: Afrizal, kerangka disiapkan)
@@ -349,9 +412,53 @@ with tab_perusahaan:
     # spec point 3d ("berdampingan atau lewat toggle" - left open to owner).
 
     # =======================================================================
-    # 4. Status request per perusahaan (BT-05). Draft + response time.
+    # 4. Waktu-respons per perusahaan (Section 6.3, OWNER-DECIDED: Afrizal).
+    # Basis send_date, sama seperti jam eskalasi FU/Ghosting (Section 4.5) -
+    # bukan last_update/idle_days (Section 4.7), yang basisnya staleness
+    # antrean Beranda dan bukan murni sisi perusahaan.
     # =======================================================================
-    st.markdown("## 4. Status request per perusahaan")
+    st.markdown("## 4. Waktu-respons per perusahaan (proses terbuka)")
+    st.caption(
+        "Rata-rata umur (hari sejak dikirim) proses yang belum selesai per "
+        "perusahaan. n >= " + str(config.MIN_N_RANKING) + " untuk lolos gate; "
+        "diurutkan dari yang paling lama menunggu."
+    )
+
+    response_time = metrics.response_time_per_company(
+        ts_filtered, tc_filtered, ANCHOR, min_n=config.MIN_N_RANKING
+    )
+    response_gated = response_time[response_time["lolos_gate"]].sort_values(
+        "avg_response_days", ascending=False
+    ).head(10)
+
+    if response_gated.empty:
+        st.markdown(
+            H.callout(
+                "Tidak ada perusahaan dengan proses terbuka yang memenuhi "
+                "ambang sampel untuk filter yang aktif saat ini.",
+                kind="muted",
+            ),
+            unsafe_allow_html=True,
+        )
+    else:
+        columns = ["Perusahaan", "Proses terbuka", "Rata-rata respons"]
+        align = ["left", "right", "right"]
+        rows = []
+        for _, r in response_gated.iterrows():
+            rows.append([
+                r["company"],
+                int(r["n"]),
+                str(round(r["avg_response_days"], 1)) + " hari",
+            ])
+        st.markdown(
+            H.read_only_table(columns, rows, align=align),
+            unsafe_allow_html=True,
+        )
+
+    # =======================================================================
+    # 5. Status request per perusahaan (BT-05). Draft + response time.
+    # =======================================================================
+    st.markdown("## 5. Status request per perusahaan")
 
     draft_df = metrics.draft_requests(tc_filtered)
     st.markdown(
