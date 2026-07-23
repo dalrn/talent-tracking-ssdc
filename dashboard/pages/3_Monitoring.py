@@ -394,3 +394,9 @@ st.markdown(
     ),
     unsafe_allow_html=True,
 )
+an <code>rejection</code> untuk hitung gugur di tiap gerbang. Kolom "
+    f"<code>tracking_company.progress</code> TIDAK dipakai sama sekali di halaman "
+    f"ini, kecuali untuk menghitung status Draft pada request (tab Perusahaan) — "
+    f"kolom itu tidak sinkron pada level detail, sesuai temuan cleaning data.</p>",
+    unsafe_allow_html=True,
+)
