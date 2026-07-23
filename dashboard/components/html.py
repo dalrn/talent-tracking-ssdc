@@ -24,6 +24,11 @@ def _esc(value):
     return _html.escape(str(value))
 
 
+def _fmt_id(n):
+    """Format an integer with Indonesian thousands separators (dots)."""
+    return "{:,}".format(int(n)).replace(",", ".")
+
+
 def kpi_card(title, value, subtitle="", accent=None, big=False):
     """A single KPI card. Title on top, big value, optional subtitle.
 
@@ -171,3 +176,60 @@ def ci_band_cell(lo, center, hi, width_px=140):
         + ';"></div>'
         + '</div>'
     )
+
+
+def funnel_bar(label, sublabel, aktif, gugur=0, gugur_label="",
+                accent=None, is_placement=False, max_val=None):
+    """One funnel stage row: label/sublabel plus an active+drop bar (Section 4.13).
+
+    aktif is the active count (progress_student) for this stage. gugur is the
+    drop count at this stage's gate (rejection), 0 for stages with no gate
+    (CDC Briefing) or for the terminal Placement stage. Bar widths are
+    percentages of max_val so every stage in the funnel is drawn to one
+    shared scale instead of each bar filling its own row - pass the largest
+    (aktif + gugur) across the funnel as max_val. Absolute numbers only, no
+    percent-of-initial, since the stage counts are not monotonic (Section
+    4.13 problem 2). Returns an HTML string; the "Buka" button is a native
+    st.button the caller renders alongside this markup.
+    """
+    accent = accent or WARNA["bar"]
+    active_color = WARNA["ok"] if is_placement else accent
+    scale = max_val if max_val else max(aktif + gugur, 1)
+
+    aktif_pct = round(aktif / scale * 100, 2) if scale else 0
+    gugur_pct = round(gugur / scale * 100, 2) if scale else 0
+
+    aktif_text = _fmt_id(aktif) + (" placed" if is_placement else "")
+    active_radius = "4px 0 0 4px" if gugur > 0 else "4px"
+
+    bar_html = (
+        '<div style="display:flex;align-items:stretch;height:34px;width:100%;">'
+        + '<div style="width:' + str(aktif_pct) + '%;min-width:2px;background:'
+        + active_color + ';color:#fff;display:flex;align-items:center;'
+        + 'padding:0 10px;font-weight:700;font-size:0.85rem;white-space:nowrap;'
+        + 'overflow:hidden;border-radius:' + active_radius + ';">'
+        + _esc(aktif_text) + '</div>'
+    )
+    if gugur > 0:
+        bar_html += (
+            '<div style="width:' + str(gugur_pct) + '%;min-width:2px;background:'
+            + WARNA["ref"] + ';color:' + WARNA["ink"] + ';display:flex;'
+            + 'align-items:center;padding:0 10px;font-size:0.78rem;'
+            + 'white-space:nowrap;overflow:hidden;border-radius:0 4px 4px 0;">'
+            + '-' + _esc(_fmt_id(gugur)) + ' ' + _esc(gugur_label) + '</div>'
+        )
+    bar_html += '</div>'
+
+    return (
+        '<div class="funnel-row" style="display:flex;align-items:center;'
+        + 'gap:16px;padding:10px 0;">'
+        + '<div style="min-width:210px;">'
+        + '<div style="font-weight:700;color:' + WARNA["ink"]
+        + ';font-size:0.92rem;">' + _esc(label) + '</div>'
+        + '<div style="color:' + WARNA["muted"] + ';font-size:0.76rem;">'
+        + _esc(sublabel) + '</div>'
+        + '</div>'
+        + '<div style="flex:1;">' + bar_html + '</div>'
+        + '</div>'
+    )
+

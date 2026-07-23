@@ -12,7 +12,6 @@
 #   components/html.py. Inputs use native Streamlit widgets.
 # - Drill-down tables use native Streamlit buttons / st.switch_page.
 
-import plotly.graph_objects as go
 import streamlit as st
 
 # Importing the core package runs core/__init__.py, which puts dashboard/ and
@@ -88,34 +87,80 @@ tab_mahasiswa, tab_perusahaan = st.tabs(["Mahasiswa", "Perusahaan"])
 with tab_mahasiswa:
 
     # =======================================================================
-    # 1. Funnel seleksi (BT-02).
+    # 1. Funnel seleksi (BT-02). Active count + drop count per gate, absolute
+    # numbers only. No Plotly go.Funnel / percent_initial: stage counts are
+    # not monotonic (Interview User 3.278 > Selecting 1.673), which makes a
+    # percent-of-initial reading misleading. Custom HTML bars via
+    # H.funnel_bar() instead, all stages sharing one width scale.
     # =======================================================================
-    st.markdown("## 1. Funnel seleksi")
+    st.markdown("## Funnel Seleksi")
     st.caption("Posisi setiap proses aktif di funnel, dan di mana kandidat "
-               "berguguran.")
+               "berguguran. Klik satu tahap untuk buka daftarnya di Beranda.")
 
     active_counts = metrics.funnel_active_counts(ts_filtered)
     drop_counts = metrics.funnel_drop_counts(ts_filtered)
 
     stages = schema.FUNNEL_ORDER  # top to bottom order, per schema.py
-    active_vals = [active_counts[s] for s in stages]
     # drop_counts has no entry for CDC Briefing (REJ_GATE_MAP has none), 0 fallback.
     drop_vals = [drop_counts.get(s, 0) for s in stages]
+    max_val = max(active_counts[s] + drop_counts.get(s, 0) for s in stages)
 
-    fig = go.Figure(
-        go.Funnel(
-            y=stages,
-            x=active_vals,
-            textinfo="value+percent initial",
-            marker=dict(color=WARNA["bar"]),
-            connector=dict(line=dict(color=WARNA["line"])),
-        )
+    STAGE_SUBLABELS = {
+        schema.STAGE_SELECTING: "perusahaan meninjau profil",
+        schema.STAGE_BRIEFING: "briefing oleh CDC",
+        schema.STAGE_STUDYCASE: "tes / studi kasus",
+        schema.STAGE_INTERVIEW: "wawancara hiring manager",
+        schema.STAGE_FINAL: "wawancara tahap akhir",
+        schema.STAGE_PLACEMENT: "diterima & ditempatkan",
+    }
+    STAGE_GUGUR_LABELS = {
+        schema.STAGE_SELECTING: "gugur screening CV",
+        schema.STAGE_STUDYCASE: "gugur study case",
+        schema.STAGE_INTERVIEW: "gugur interview user",
+        schema.STAGE_FINAL: "gugur final",
+    }
+
+    for stage in stages:
+        col_bar, col_btn = st.columns([6, 1])
+        with col_bar:
+            st.markdown(
+                H.funnel_bar(
+                    label=stage,
+                    sublabel=STAGE_SUBLABELS.get(stage, ""),
+                    aktif=active_counts[stage],
+                    gugur=drop_counts.get(stage, 0),
+                    gugur_label=STAGE_GUGUR_LABELS.get(stage, ""),
+                    accent=WARNA["bar"],
+                    is_placement=(stage == schema.STAGE_PLACEMENT),
+                    max_val=max_val,
+                ),
+                unsafe_allow_html=True,
+            )
+        with col_btn:
+            # Native button required to catch a click (Plotly funnel click-event
+            # is not reliably capturable), per spec point 2c.
+            if st.button("Buka →", key="buka_" + stage):
+                st.session_state["beranda_segment"] = {
+                    "stage": stage,
+                    "source_page": "Monitoring",
+                }
+                st.switch_page("pages/1_Beranda.py")
+
+    st.markdown(
+        '<div style="display:flex;gap:24px;align-items:center;'
+        'margin-top:6px;font-size:0.8rem;color:' + WARNA["ink2"] + ';">'
+        '<div><span style="display:inline-block;width:12px;height:12px;'
+        'background:' + WARNA["bar"] + ';border-radius:2px;margin-right:6px;">'
+        '</span>Aktif di tahap (progress_student)</div>'
+        '<div><span style="display:inline-block;width:12px;height:12px;'
+        'background:' + WARNA["ref"] + ';border-radius:2px;margin-right:6px;">'
+        '</span>Gugur di tahap ini (rejection)</div>'
+        '<div><span style="display:inline-block;width:12px;height:12px;'
+        'background:' + WARNA["ok"] + ';border-radius:2px;margin-right:6px;">'
+        '</span>Placement</div>'
+        '</div>',
+        unsafe_allow_html=True,
     )
-    fig.update_layout(
-        height=420,
-        margin=dict(l=10, r=10, t=10, b=10),
-    )
-    st.plotly_chart(fig, use_container_width=True)
 
     # Automatic callout: biggest bottleneck, computed not hardcoded.
     if any(v > 0 for v in drop_vals):
@@ -131,38 +176,9 @@ with tab_mahasiswa:
         )
 
     # =======================================================================
-    # 2. Tahapan funnel. Klik untuk buka daftar di Beranda.
-    # =======================================================================
-    st.markdown("## 2. Tahapan")
-    st.caption("Klik Buka untuk membuka daftar kandidat tahap itu di Beranda.")
-
-    for stage in stages:
-        col_label, col_btn = st.columns([5, 1])
-        with col_label:
-            gugur = drop_counts.get(stage, 0)
-            if stage in drop_counts:
-                sub = str(active_counts[stage]) + " aktif, " + str(gugur) + " gugur"
-            else:
-                sub = str(active_counts[stage]) + " aktif, tidak ada gerbang gugur"
-            st.markdown(
-                H.kpi_card(stage, str(active_counts[stage]) + " aktif", sub,
-                           accent=WARNA["ink"]),
-                unsafe_allow_html=True,
-            )
-        with col_btn:
-            # Native button required to catch a click (Plotly funnel click-event
-            # is not reliably capturable), per spec point 2c.
-            if st.button("Buka", key="buka_" + stage):
-                st.session_state["beranda_segment"] = {
-                    "stage": stage,
-                    "source_page": "Monitoring",
-                }
-                st.switch_page("pages/1_Beranda.py")
-
-    # =======================================================================
     # 3. Performa perusahaan (ringkas). Analisis penuh ada di Analitik.
     # =======================================================================
-    st.markdown("## 3. Performa perusahaan (ringkas)")
+    st.markdown("## 2. Performa perusahaan (ringkas)")
     st.caption("Versi operasional ringkas. Analisis penuh ada di halaman "
                "Analitik.")
 
