@@ -225,7 +225,7 @@ with c2:
             st.markdown("Kriteria diperlukan: " + tr_req['deskripsi_requirement']) 
 
     # container bobot dan ringkasan hasil matching
-    with st.container(height = 560):
+    with st.container(height = 200):
             c1, c2 = st.columns([3,1])
             with c1: 
                 st.markdown("### Ringkasan hasil matching")
