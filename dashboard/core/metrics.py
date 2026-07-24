@@ -222,6 +222,19 @@ def idle_days(tracking_student, anchor):
     return (anchor - tracking_student["last_update"]).dt.days
 
 
+def stage_mask(tracking_student, stage):
+    """Generic operational stage mask: progress_student == stage (Section 4.7).
+
+    Same "use the existing label, do not recompute" pattern as
+    is_stage_placement (4.1b) and ghosting_operasional_mask (4.5), for the
+    other progress_student values the Beranda queue segments need (FU 1,
+    FU 2, FU 3, Interview User, Final Interview). Pass a schema.STAGE_*
+    constant, never a raw string.
+    Source column: progress_student.
+    """
+    return tracking_student["progress_student"] == stage
+
+
 # ---------------------------------------------------------------------------
 # 4.8 BT-03 KPI (Matching).
 # ---------------------------------------------------------------------------

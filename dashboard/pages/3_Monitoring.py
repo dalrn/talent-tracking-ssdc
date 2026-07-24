@@ -180,7 +180,7 @@ with tab_mahasiswa:
     # is the only source of n/k/rate/wilson_*; jenis_penempatan and
     # industry_sector below are descriptive lookups only, not metrics.
     # =======================================================================
-    st.markdown("## 2. Overview Performa Perusahaan")
+    st.markdown("## Overview Performa Perusahaan")
     st.caption("Versi operasional ringkas. Analisis penuh ada di halaman "
                "Analitik.")
 
@@ -281,7 +281,7 @@ with tab_perusahaan:
     # =======================================================================
     # 1. Pola ghosting. Dua angka: pelaporan vs operasional.
     # =======================================================================
-    st.markdown("## 1. Pola ghosting")
+    st.markdown("## Pola ghosting")
     st.caption("Tingkat sistem, bukan per orang.")
 
     n_reporting = int(metrics.ghosting_reporting_mask(ts_filtered).sum())
@@ -322,7 +322,7 @@ with tab_perusahaan:
     # =======================================================================
     # 2. Klasifikasi tipe ghosting.
     # =======================================================================
-    st.markdown("## 2. Klasifikasi tipe ghosting")
+    st.markdown("## Klasifikasi tipe ghosting")
 
     klas = metrics.klasifikasi_ghosting(
         ts_filtered, ghosting_mask=metrics.ghosting_reporting_mask(ts_filtered)
@@ -364,7 +364,7 @@ with tab_perusahaan:
     # =======================================================================
     # 3. Rate ghosting tertinggi. Dua versi berdampingan.
     # =======================================================================
-    st.markdown("## 3. Rate ghosting tertinggi (n >= " + str(config.MIN_N_RANKING)
+    st.markdown("## Rate ghosting tertinggi (n >= " + str(config.MIN_N_RANKING)
                 + ")")
 
     ghost_all = metrics.ghosting_rate_per_company(ts_filtered, min_n=config.MIN_N_RANKING)
@@ -417,7 +417,7 @@ with tab_perusahaan:
     # bukan last_update/idle_days (Section 4.7), yang basisnya staleness
     # antrean Beranda dan bukan murni sisi perusahaan.
     # =======================================================================
-    st.markdown("## 4. Waktu-respons per perusahaan (proses terbuka)")
+    st.markdown("## Waktu-respons per perusahaan (proses terbuka)")
     st.caption(
         "Rata-rata umur (hari sejak dikirim) proses yang belum selesai per "
         "perusahaan. n >= " + str(config.MIN_N_RANKING) + " untuk lolos gate; "
@@ -458,7 +458,7 @@ with tab_perusahaan:
     # =======================================================================
     # 5. Status request per perusahaan (BT-05). Draft + response time.
     # =======================================================================
-    st.markdown("## 5. Status request per perusahaan")
+    st.markdown("## Status request per perusahaan")
 
     draft_df = metrics.draft_requests(tc_filtered)
     st.markdown(
