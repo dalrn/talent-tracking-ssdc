@@ -24,6 +24,7 @@ import core  # noqa: F401
 import config
 from core import loader, clean, metrics
 from components import html as H
+from components import styles as S
 
 WARNA = config.WARNA
 
@@ -31,6 +32,9 @@ WARNA = config.WARNA
 # ---------------------------------------------------------------------------
 # Data. Loaded and cleaned once by the cached loader.
 # ---------------------------------------------------------------------------
+
+st.set_page_config(page_title="Analitik SSDC", layout="wide")
+S.inject()
 
 raw = loader.load_data()
 data = clean.clean_data(raw)
@@ -41,10 +45,15 @@ ss = data.status_student
 sa = data.student_all
 co = data.company
 
-st.set_page_config(page_title="Analitik SSDC", layout="wide")
-st.title("Analitik")
-st.caption("Ringkasan kinerja program untuk pimpinan. Data per "
-           + str(data.ANCHOR.date()) + ".")
+st.markdown(
+    H.page_header(
+        "Analitik",
+        "Ringkasan kinerja program untuk pimpinan.",
+        eyebrow="Laporan Kinerja",
+        stamp="Data per " + str(data.ANCHOR.date()),
+    ),
+    unsafe_allow_html=True,
+)
 
 rate_shipment = metrics.success_rate_per_shipment(ts)
 n_placement = int(metrics.is_placement_success(metrics.ts_bersih(ts)).sum())
@@ -76,45 +85,51 @@ st.markdown(
 st.markdown("## Seberapa berhasil program ini")
 
 # Headline is per-student (keputusan tim). Per-shipment is the secondary,
-# operational efficiency angle, shown smaller beside it.
-c1, c2, c3 = st.columns([1.2, 1, 1.3])
+# operational efficiency angle, shown smaller beside it. Both metrics and the
+# reasoning live in one surface so the "two honest numbers" story reads as a
+# single deliberate unit, not three loose boxes.
+with st.container(border=True):
+    c1, cdiv, c2, c3 = st.columns([1.15, 0.06, 1, 1.35])
 
-with c1:
-    st.markdown(
-        H.kpi_card(
-            "Keberhasilan per mahasiswa",
-            str(round(rate_student * 100, 1)) + "%",
-            str(num_student) + " mahasiswa ditempatkan, dari "
-            + str(den_student) + " mahasiswa yang disalurkan CDC",
-            accent=WARNA["accent"], big=True,
-        ),
-        unsafe_allow_html=True,
-    )
+    with c1:
+        st.markdown(
+            H.kpi_card(
+                "Keberhasilan per mahasiswa",
+                str(round(rate_student * 100, 1)) + "%",
+                str(num_student) + " mahasiswa ditempatkan, dari "
+                + str(den_student) + " mahasiswa yang disalurkan CDC",
+                accent=WARNA["accent"], big=True,
+            ),
+            unsafe_allow_html=True,
+        )
 
-with c2:
-    st.markdown(
-        H.kpi_card(
-            "Keberhasilan per pengiriman",
-            str(round(rate_shipment * 100, 1)) + "%",
-            str(n_placement) + " placement dari " + str(n_base)
-            + " pengiriman",
-            accent=WARNA["ink2"], big=False,
-        ),
-        unsafe_allow_html=True,
-    )
+    with cdiv:
+        st.markdown('<div class="metric-divider"></div>', unsafe_allow_html=True)
 
-with c3:
-    st.markdown(
-        H.callout(
-            "Angka per mahasiswa menghitung tiap orang. Angka per pengiriman "
-            "menghitung tiap proses kirim. Tiap mahasiswa memang sengaja "
-            "dikirim ke banyak perusahaan dan cukup berhasil di salah satunya, "
-            "jadi angka per pengiriman wajar lebih kecil. Keduanya benar, "
-            "sudut pandangnya berbeda.",
-            kind="accent", title="Kenapa dua angka ini berbeda",
-        ),
-        unsafe_allow_html=True,
-    )
+    with c2:
+        st.markdown(
+            H.kpi_card(
+                "Keberhasilan per pengiriman",
+                str(round(rate_shipment * 100, 1)) + "%",
+                str(n_placement) + " placement dari " + str(n_base)
+                + " pengiriman",
+                accent=WARNA["ink2"], big=False,
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with c3:
+        st.markdown(
+            H.callout(
+                "Angka per mahasiswa menghitung tiap orang. Angka per pengiriman "
+                "menghitung tiap proses kirim. Tiap mahasiswa memang sengaja "
+                "dikirim ke banyak perusahaan dan cukup berhasil di salah satunya, "
+                "jadi angka per pengiriman wajar lebih kecil. Keduanya benar, "
+                "sudut pandangnya berbeda.",
+                kind="accent", title="Kenapa dua angka ini berbeda",
+            ),
+            unsafe_allow_html=True,
+        )
 
 
 # ===========================================================================
@@ -179,15 +194,16 @@ fig.update_layout(
     margin=dict(l=10, r=10, t=30, b=10),
     height=380,
 )
-st.plotly_chart(fig, use_container_width=True)
-st.markdown(
-    H.callout(
-        "Periode terakhir bertanda garis miring belum lengkap. Data send_date "
-        "berhenti di pertengahan periode, jadi volumenya belum penuh.",
-        kind="watch",
-    ),
-    unsafe_allow_html=True,
-)
+with st.container(border=True):
+    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.markdown(
+        H.callout(
+            "Periode terakhir bertanda garis miring belum lengkap. Data send_date "
+            "berhenti di pertengahan periode, jadi volumenya belum penuh.",
+            kind="watch",
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 # ===========================================================================
@@ -246,15 +262,17 @@ def _segment_bar_figure(df, label_col, title):
 
 sc1, sc2 = st.columns(2)
 with sc1:
-    st.plotly_chart(
-        _segment_bar_figure(seg_prog, "program_studi", "Per program studi"),
-        use_container_width=True,
-    )
+    with st.container(border=True):
+        st.plotly_chart(
+            _segment_bar_figure(seg_prog, "program_studi", "Per program studi"),
+            use_container_width=True, theme=None,
+        )
 with sc2:
-    st.plotly_chart(
-        _segment_bar_figure(seg_sect, "industry_sector", "Per sektor industri"),
-        use_container_width=True,
-    )
+    with st.container(border=True):
+        st.plotly_chart(
+            _segment_bar_figure(seg_sect, "industry_sector", "Per sektor industri"),
+            use_container_width=True, theme=None,
+        )
 
 # Honest finding. Do not dramatize small gaps.
 prog_spread = (seg_prog["rate"].max() - seg_prog["rate"].min()) * 100
@@ -347,51 +365,62 @@ st.markdown("## Kesehatan data")
 drift = metrics.drift_student_all_vs_status(sa, ss)
 drift_total = sum(drift.values())
 
-b1, b2 = st.columns([1, 2])
+b1, b2 = st.columns([1, 1.4])
 with b1:
-    if drift_total == 0:
-        badge_html = H.badge("AMAN", "ok")
-        drift_text = (
-            "student_all dan status_student 100 persen konsisten. "
-            "0 selisih pada semester, program, nama, email."
+    with st.container(border=True):
+        if drift_total == 0:
+            badge_html = H.badge("AMAN", "ok")
+            drift_text = (
+                "student_all dan status_student 100 persen konsisten. "
+                "0 selisih pada semester, program, nama, email."
+            )
+        else:
+            badge_html = H.badge("PERIKSA", "crit")
+            drift_text = "Ada selisih: " + str(drift)
+        st.markdown(
+            '<div class="card-title">Status drift ' + badge_html
+            + '<span class="ct-sub">Konsistensi student_all vs status_student'
+            + '</span></div>',
+            unsafe_allow_html=True,
         )
-    else:
-        badge_html = H.badge("PERIKSA", "crit")
-        drift_text = "Ada selisih: " + str(drift)
-    st.markdown(
-        '<div style="font-size:1.1rem;margin-bottom:6px;">Status drift '
-        + badge_html + '</div>' + H.callout(drift_text, kind="ok"),
-        unsafe_allow_html=True,
-    )
+        st.markdown(H.callout(drift_text, kind="ok"), unsafe_allow_html=True)
 
 with b2:
-    x_days = st.slider(
-        "Ambang umur sync (hari)",
-        min_value=0,
-        max_value=180,
-        value=config.SYNC_SLIDER_DEFAULT,
-        key="sync_slider",
-    )
-    stale = metrics.sync_stale_count(ss, data.SYNC_REF, x_days)
-    st.markdown(
-        H.kpi_card(
-            "Baris sync lebih tua dari " + str(x_days) + " hari",
-            str(stale),
-            "Relatif terhadap sync terakhir",
-            accent=WARNA["ink"],
-        ),
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        H.callout(
-            "Data mahasiswa terakhir di-sync: " + str(data.SYNC_REF.date())
-            + " (31 Jan 2025). Relatif terhadap tanggal acuan global "
-            + str(data.ANCHOR.date()) + ", semua data sync sudah sekitar 3,5 "
-            "bulan atau lebih, karena tabel sync berhenti di Januari.",
-            kind="watch",
-        ),
-        unsafe_allow_html=True,
-    )
+    with st.container(border=True):
+        st.markdown(
+            '<div class="card-title">Kesegaran sync'
+            + '<span class="ct-sub">Geser ambang umur untuk menghitung baris '
+            + 'sync yang menua</span></div>',
+            unsafe_allow_html=True,
+        )
+        x_days = st.slider(
+            "Ambang umur sync (hari)",
+            min_value=0,
+            max_value=180,
+            value=config.SYNC_SLIDER_DEFAULT,
+            key="sync_slider",
+            label_visibility="collapsed",
+        )
+        stale = metrics.sync_stale_count(ss, data.SYNC_REF, x_days)
+        st.markdown(
+            H.kpi_card(
+                "Baris sync lebih tua dari " + str(x_days) + " hari",
+                str(stale),
+                "Relatif terhadap sync terakhir",
+                accent=WARNA["ink"],
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            H.callout(
+                "Data mahasiswa terakhir di-sync: " + str(data.SYNC_REF.date())
+                + " (31 Jan 2025). Relatif terhadap tanggal acuan global "
+                + str(data.ANCHOR.date()) + ", semua data sync sudah sekitar 3,5 "
+                "bulan atau lebih, karena tabel sync berhenti di Januari.",
+                kind="watch",
+            ),
+            unsafe_allow_html=True,
+        )
 
 
 # ===========================================================================

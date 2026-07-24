@@ -1,0 +1,27 @@
+# Streamlit theme. This is the first-order fix for the "vanilla" look:
+# it repaints every native widget accent (tabs, radio, slider, checkbox,
+# primary button) from Streamlit red to the SSDC teal, and sets the page
+# and panel backgrounds to match config.WARNA. Fine typography, card
+# elevation, and chrome cleanup live in components/styles.py.
+#
+# Colors here MUST stay in sync with WARNA in config.py:
+#   primaryColor           = WARNA["accent"]
+#   backgroundColor        = page (very slightly warmed for depth against panels)
+#   secondaryBackgroundColor = WARNA["panel"]
+#   textColor              = WARNA["ink"]
+
+[theme]
+base = "light"
+primaryColor = "#0f5f66"
+backgroundColor = "#f4f6f4"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#14181a"
+# Font family is driven from styles.py (Inter, injected via CSS) so the look
+# is identical across Streamlit versions. "sans serif" is just the fallback.
+font = "sans serif"
+
+[client]
+# Hide the "Deploy" button and collapse the developer chrome for a
+# product-grade presentation.
+toolbarMode = "minimal"
+showErrorDetails = "full"

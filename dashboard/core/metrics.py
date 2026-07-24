@@ -852,3 +852,87 @@ def response_time_per_company(tracking_student, tracking_company, anchor,
     out = pd.DataFrame({"n": grp.size(), "avg_response_days": grp.mean()})
     out["lolos_gate"] = out["n"] >= min_n
     return out.reset_index()
+
+# ---------------------------------------------------------------------------
+# Beranda action queue (Section 4.7 and 6.1). Pure plumbing, not a new
+# definition. Segment membership comes from schema.BERANDA_SEGMEN_PROGRESS.
+# The queue uses ALL rows, not the clean base: these are active stages, and
+# anomaly rows have progress Finish so they never land in an active segment
+# (Section 4.7 note).
+# ---------------------------------------------------------------------------
+
+def beranda_queue(tracking_student, anchor):
+    """Active follow-up queue with segment label and idle days (Section 6.1).
+
+    Keeps only rows whose progress_student is in a tracking based Beranda
+    segment (Ghosting, FU 3, FU 1 & 2, Interview). Adds two columns:
+    segmen (the segment label) and diam_hari (anchor - last_update in days).
+    Sorted by segment urgency order first, then diam_hari descending so the
+    longest idle row sits on top within each segment.
+
+    The fifth segment, Eligible belum dikirim, is status_student based and is
+    built by eligible_belum_dikirim(), not here.
+    Source columns: progress_student, last_update.
+    """
+    # Map each active progress value to its segment label.
+    progress_to_seg = {}
+    for seg, progress_values in schema.BERANDA_SEGMEN_PROGRESS.items():
+        for pv in progress_values:
+            progress_to_seg[pv] = seg
+
+    mask = tracking_student["progress_student"].isin(progress_to_seg.keys())
+    q = tracking_student[mask].copy()
+    q["segmen"] = q["progress_student"].map(progress_to_seg)
+    q["diam_hari"] = (anchor - q["last_update"]).dt.days
+
+    # Urgency rank for a stable sort, most urgent segment first.
+    seg_rank = {
+        seg: i for i, seg in enumerate(schema.BERANDA_SEGMEN_ORDER)
+    }
+    q["_rank"] = q["segmen"].map(seg_rank)
+    q = q.sort_values(
+        ["_rank", "diam_hari"], ascending=[True, False]
+    ).drop(columns="_rank")
+    return q
+
+
+def beranda_segment_counts(tracking_student, status_student):
+    """Row count per Beranda segment (Section 6.1 segment cards).
+
+    Returns an ordered dict following schema.BERANDA_SEGMEN_ORDER. The four
+    tracking segments count progress_student rows. The Eligible segment counts
+    students from eligible_belum_dikirim (Section 4.4).
+    Source columns: progress_student, plus eligible_belum_dikirim inputs.
+    """
+    counts = {}
+    for seg, progress_values in schema.BERANDA_SEGMEN_PROGRESS.items():
+        counts[seg] = int(
+            tracking_student["progress_student"].isin(progress_values).sum()
+        )
+    counts[schema.SEG_ELIGIBLE] = len(
+        eligible_belum_dikirim(status_student, tracking_student)
+    )
+    # Reorder to the urgency order.
+    return {seg: counts[seg] for seg in schema.BERANDA_SEGMEN_ORDER}
+
+
+def student_processes(tracking_student, nim):
+    """Every tracking_student row for one NIM (Section 6.1 drill-down).
+
+    The team differentiator: all of a student's processes across all
+    companies, not just the selected row. Source columns: NIM.
+    """
+    return tracking_student[tracking_student["NIM"] == nim]
+
+
+def student_placements(tracking_student, nim):
+    """Placement rows (rejection == Placement) for one NIM (Section 6.1).
+
+    Feeds the "already placed elsewhere" callout. If this is non empty, the
+    student already succeeded somewhere and a follow up may be wasted.
+    Source columns: NIM, rejection.
+    """
+    m = (tracking_student["NIM"] == nim) & (
+        tracking_student["rejection"] == schema.REJ_PLACEMENT
+    )
+    return tracking_student[m]
