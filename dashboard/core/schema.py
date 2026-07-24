@@ -69,6 +69,30 @@ REJ_GATE_MAP = {
 # "open" for response-time metrics (Section 6.3, OWNER-DECIDED: Afrizal).
 STAGE_TERMINAL = {STAGE_PLACEMENT, STAGE_REJECTED, STAGE_FINISH}
 
+# Beranda action-queue segments (Section 4.7 and 6.1). Urgency order, most
+# urgent first. The first four are tracking_student segments keyed by
+# progress_student. The last, "Eligible belum dikirim", is a status_student
+# segment (Section 4.4), so it has no progress mapping here and is handled
+# separately by the page. Within any segment, rows sort by idle days
+# (ANCHOR - last_update) descending, longest idle on top.
+SEG_GHOSTING = "Ghosting"
+SEG_FU3 = "FU 3"
+SEG_FU12 = "FU 1 & 2"
+SEG_INTERVIEW = "Interview"
+SEG_ELIGIBLE = "Eligible belum dikirim"
+
+BERANDA_SEGMEN_ORDER = [
+    SEG_GHOSTING, SEG_FU3, SEG_FU12, SEG_INTERVIEW, SEG_ELIGIBLE,
+]
+
+# progress_student values that fall into each tracking based segment.
+BERANDA_SEGMEN_PROGRESS = {
+    SEG_GHOSTING: [STAGE_GHOSTING],
+    SEG_FU3: [STAGE_FU3],
+    SEG_FU12: [STAGE_FU1, STAGE_FU2],
+    SEG_INTERVIEW: [STAGE_INTERVIEW, STAGE_FINAL],
+}
+
 # The 18 programs (closed set) grouped into 6 fallback clusters (Section 5.3).
 # The cluster is used ONLY as a Matching fallback when exact candidates run short.
 PRODI_CLUSTER = {

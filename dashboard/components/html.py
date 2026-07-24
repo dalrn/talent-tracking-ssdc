@@ -29,6 +29,32 @@ def _fmt_id(n):
     return "{:,}".format(int(n)).replace(",", ".")
 
 
+def page_header(title, subtitle="", eyebrow="SSDC Dashboard", stamp=None):
+    """The page masthead. Replaces a bare st.title + st.caption.
+
+    eyebrow is a small uppercase kicker for brand consistency across pages.
+    stamp is an optional pill (used for the "Data per <date>" freshness note).
+    Styled by the .page-header rules in components/styles.py. Returns HTML.
+    """
+    eyebrow_html = ""
+    if eyebrow:
+        eyebrow_html = '<div class="ph-eyebrow">' + _esc(eyebrow) + '</div>'
+    sub_html = ""
+    if subtitle:
+        sub_html = '<div class="ph-sub">' + _esc(subtitle) + '</div>'
+    stamp_html = ""
+    if stamp:
+        stamp_html = '<div class="ph-stamp">' + _esc(stamp) + '</div>'
+    return (
+        '<div class="page-header">'
+        + eyebrow_html
+        + '<div class="ph-title">' + _esc(title) + '</div>'
+        + sub_html
+        + stamp_html
+        + '</div>'
+    )
+
+
 def kpi_card(title, value, subtitle="", accent=None, big=False):
     """A single KPI card. Title on top, big value, optional subtitle.
 
@@ -233,3 +259,25 @@ def funnel_bar(label, sublabel, aktif, gugur=0, gugur_label="",
         + '</div>'
     )
 
+
+
+def wa_url(phone):
+    """Build a wa.me link URL from an Indonesian phone number (spec 3.6).
+
+    Format: https://wa.me/62{number without leading zero}. Returns an empty
+    string for a missing or unusable number. Generic: any page that shows a
+    contact action can use it. Used by the Beranda queue and drill-down.
+    """
+    if phone is None:
+        return ""
+    s = str(phone).strip()
+    # Keep digits only. Spreadsheets sometimes carry stray spaces or symbols.
+    s = "".join(ch for ch in s if ch.isdigit())
+    if s == "":
+        return ""
+    if s.startswith("0"):
+        s = s[1:]
+    if s.startswith("62"):
+        # Already in country-code form. Use as is.
+        return "https://wa.me/" + s
+    return "https://wa.me/62" + s

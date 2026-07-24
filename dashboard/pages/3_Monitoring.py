@@ -22,11 +22,15 @@ import config
 import schema
 from core import loader, clean, metrics
 import components.html as H
+from components import styles as S
 WARNA = config.WARNA
 
 # ---------------------------------------------------------------------------
 # Data. Loaded and cleaned once by the cached loader.
 # ---------------------------------------------------------------------------
+
+st.set_page_config(page_title="Monitoring SSDC", layout="wide")
+S.inject()
 
 raw = loader.load_data()
 data = clean.clean_data(raw)
@@ -34,11 +38,15 @@ data = clean.clean_data(raw)
 tracking_student = data.tracking_student
 tracking_company = data.tracking_company
 ANCHOR = data.ANCHOR
-
-st.set_page_config(page_title="Monitoring SSDC", layout="wide")
-st.title("Monitoring")
-st.caption("Di mana pipeline bocor, dan pola apa yang sistemik. Data per "
-           + str(ANCHOR.date()) + ".")
+st.markdown(
+    H.page_header(
+        "Monitoring",
+        "Di mana pipeline bocor, dan pola apa yang sistemik.",
+        eyebrow="Pipeline & Ghosting",
+        stamp="Data per " + str(ANCHOR.date()),
+    ),
+    unsafe_allow_html=True,
+)
 
 
 # ---------------------------------------------------------------------------

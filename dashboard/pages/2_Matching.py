@@ -8,12 +8,16 @@ from streamlit_searchbox import st_searchbox
 import config
 from core import clean, loader, metrics, schema, matching_engine
 from components import html as H
+from components import styles as S
 
 
 WARNA = config.WARNA
 
 
 # Data. Loaded and cleaned once by the cached loader.
+
+st.set_page_config(page_title="Matching", layout="wide")
+S.inject()
 
 raw = loader.load_data()
 data = clean.clean_data(raw)
@@ -25,9 +29,15 @@ sa = data.student_all
 co = data.company
 tr = data.talent_request
 ANCHOR = data.ANCHOR
-
-st.set_page_config(page_title="Matching", layout="wide")
-st.title("Talent Matching")
+st.markdown(
+    H.page_header(
+        "Talent Matching",
+        "Cocokkan permintaan perusahaan yang belum digarap dengan mahasiswa "
+        "yang paling sesuai.",
+        eyebrow="Pencocokan Talenta",
+    ),
+    unsafe_allow_html=True,
+)
 
 
 # cell matching
