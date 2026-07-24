@@ -32,6 +32,15 @@ AVAIL_AVAILABLE = "Available"
 AVAIL_PLACED = "Placed"
 AVAIL_INACTIVE = "Tidak Aktif"
 
+JENIS_MAGANG = "Magang"
+JENIS_PART_TIME = "Part-time"
+JENIS_FULL_TIME = "Full-time"
+
+STATUS_AKTIF = "Active"
+STATUS_LULUS = "Lulus"
+STATUS_TIDAK_AKTIF = "Inactive"
+STATUS_CUTI = "Cuti"
+
 # progress column in tracking_company. Used ONLY to detect Draft requests.
 # The funnel never uses this column (Section 3.2).
 TC_PROGRESS_DRAFT = "Draft"

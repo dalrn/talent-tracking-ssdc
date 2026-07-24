@@ -36,7 +36,14 @@ WILSON_Z = 1.96
 MIN_N_RANKING = 30
 
 # Default weights for the Matching score. Sliders can change these.
-BOBOT_DEFAULT = {"prodi": 35, "tools": 30, "ipk": 20, "domisili": 15}
+BOBOT_DEFAULT = {
+    "tool_match": 0.35,
+    "program_study": 0.20,
+    "ipk": 0.15,
+    "interest": 0.10,
+    "location": 0.10,
+    "placement_preference": 0.10,
+}
 
 # Default value for the BT-08 sync freshness slider, in days.
 SYNC_SLIDER_DEFAULT = 30

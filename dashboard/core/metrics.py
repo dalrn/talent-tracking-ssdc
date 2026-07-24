@@ -8,6 +8,9 @@
 # definition and source columns.
 
 import pandas as pd
+import streamlit as st
+import plotly.graph_objects as go
+
 
 import config
 import schema
@@ -936,3 +939,90 @@ def student_placements(tracking_student, nim):
         tracking_student["rejection"] == schema.REJ_PLACEMENT
     )
     return tracking_student[m]
+
+
+# ---------------------------------------------------------------------------
+# Matching page (BT-01) dashboard helpers. Session-state resets and the
+# donut-chart KPI renderer used by pages/2_Matching.py. Not metrics in the
+# Section 4 sense (no cleaned dataframe in, no value/mask/dataframe out) --
+# kept here per project decision to consolidate the Matching page's
+# non-widget logic in one place instead of scattering it across the page.
+# ---------------------------------------------------------------------------
+
+WEIGHT_WIDGET_KEYS = {
+    "tool_match": "bobot_tool_match",
+    "program_study": "bobot_program_study",
+    "ipk": "bobot_ipk",
+    "interest": "bobot_interest",
+    "location": "bobot_location",
+    "placement_preference": "bobot_placement_preference",
+}
+
+
+def default_weight_percent(weight_name):
+    """Default slider value (0-100) for a matching weight, from config.BOBOT_DEFAULT."""
+    return int(config.BOBOT_DEFAULT[weight_name] * 100)
+
+
+def reset_matching_weights():
+    """Reset every matching weight slider (st.session_state) to its config.BOBOT_DEFAULT value."""
+    for weight_name, widget_key in WEIGHT_WIDGET_KEYS.items():
+        st.session_state[widget_key] = default_weight_percent(weight_name)
+
+
+def reset_selected_request():
+    """Clear the selected talent request and any candidate selection tied to it."""
+    st.session_state["request_table_version"] += 1
+    st.session_state["selected_candidate_ids"] = []
+    st.session_state["active_request_id"] = None
+
+
+def reset_selected_candidates():
+    """Clear the selected-candidate set without deselecting the talent request."""
+    st.session_state["selected_candidate_ids"] = []
+
+
+def donut_kpi_figure(value, total, accent):
+    """Donut chart: value/total as a percentage, with the percentage centered.
+
+    Used for the three matching-summary KPIs (eligible, domisili sama
+    kantor, punya portofolio) so they read as a share of a base, not just
+    a bare count.
+    """
+    pct = (value / total * 100) if total else 0.0
+    fig = go.Figure(
+        go.Pie(
+            values=[value, max(total - value, 0)],
+            hole=0.72,
+            marker=dict(colors=[accent, config.WARNA["line"]]),
+            textinfo="none",
+            hoverinfo="skip",
+            sort=False,
+            direction="clockwise",
+            showlegend=False,
+        )
+    )
+    fig.update_layout(
+        annotations=[dict(
+            text=f"{pct:.0f}%", x=0.5, y=0.5, showarrow=False,
+            font=dict(size=22, color=accent),
+        )],
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=150,
+    )
+    return fig
+
+
+def render_donut_kpi(column, chart_key, title, value, total, accent, unit_label):
+    """Render one donut-chart KPI (title, chart, "x dari y ..." caption) into a Streamlit column."""
+    with column:
+        st.caption(title)
+        st.plotly_chart(
+            donut_kpi_figure(value, total, accent),
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key=chart_key,
+        )
+        st.markdown(f"**{value} dari {total} {unit_label}**")
+
+
