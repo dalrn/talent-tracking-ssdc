@@ -25,7 +25,7 @@ WARNA = config.WARNA
 # folder so it works no matter the current working directory.
 _ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 _LOGO_CANDIDATES = [
-    "cdc_logo.png", "cdc_logo.svg", "cdc_logo.jpg",
+    "cdc_logo.png", "cdc_logo.svg", "cdc_logo.jpg", "cdc_logo.jpeg",
     "logo_cdc.png", "logo.png",
 ]
 
@@ -77,6 +77,16 @@ def render_sidebar(data):
         unsafe_allow_html=True,
     )
 
+    # Work title, shown above the logo at the very top of the sidebar.
+    with st.sidebar:
+        st.markdown(
+            "<div style='color:#000000;font-size:1rem;font-weight:700;"
+            "line-height:1.4;margin-bottom:8px;'>INTEGRASI DASHBOARD "
+            "INTERAKTIF UNTUK OPTIMALISASI KINERJA CAREER DEVELOPMENT "
+            "CENTER (CDC)</div>",
+            unsafe_allow_html=True,
+        )
+
     # CDC logo at the top of the sidebar. Shown only if a logo file is present
     # in dashboard/assets (see _LOGO_CANDIDATES); the sidebar renders cleanly
     # without it otherwise, so a missing file is never an error.
@@ -99,6 +109,12 @@ def render_sidebar(data):
                 format="DD/MM/YYYY",
             )
             st.caption("Data per " + H.tanggal_id(data.ANCHOR.date()))
+            st.markdown(
+                "<div style='color:" + WARNA["navy"] + ";font-size:0.8rem;"
+                "font-weight:700;line-height:1.4;margin-top:24px;'>"
+                "matplotlibur<br>SSDC2026045</div>",
+                unsafe_allow_html=True,
+            )
 
     # date_input returns a single date until both ends are picked. Guard that.
     if isinstance(picked, (tuple, list)) and len(picked) == 2:
