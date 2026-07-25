@@ -257,14 +257,7 @@ if view == "Mahasiswa":
         if any(v > 0 for v in drop_vals):
             bottleneck_stage = max(drop_counts, key=drop_counts.get)
             bottleneck_val = drop_counts[bottleneck_stage]
-            st.markdown(
-                H.callout(
-                    H._fmt_id(bottleneck_val) + " kandidat gugur di tahap ini, "
-                    "kebocoran terbesar di sepanjang corong.",
-                    kind="watch", title="Kebocoran terbesar: " + str(bottleneck_stage),
-                ),
-                unsafe_allow_html=True,
-            )
+
 
     # =======================================================================
     # 2. Performa perusahaan (ringkas). Analisis penuh ada di Analitik.
@@ -662,19 +655,4 @@ n_stage_placement = int(metrics.is_stage_placement(ts_filtered).sum())
 n_success_placement = int(metrics.is_placement_success(ts_filtered).sum())
 selisih = n_success_placement - n_stage_placement
 
-st.markdown("---")
-st.markdown(
-    H.callout(
-        "Corong di halaman ini memakai kolom progress_student untuk posisi "
-        "aktif, totalnya " + H._fmt_id(n_stage_placement) + " di tahap "
-        "Placement. Definisi resmi keberhasilan (BT-04) memakai kolom "
-        "rejection bernilai Placement, totalnya " + H._fmt_id(n_success_placement)
-        + ". Selisih " + H._fmt_id(selisih) + " adalah placement yang sudah "
-        "diarsipkan ke Finish, tetap dihitung berhasil. Kolom "
-        "tracking_company.progress tidak dipakai di halaman ini kecuali untuk "
-        "mendeteksi status Draft pada request. Ini konsisten dengan halaman "
-        "Analitik.",
-        kind="muted", title="Catatan definisi",
-    ),
-    unsafe_allow_html=True,
-)
+

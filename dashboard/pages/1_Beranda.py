@@ -70,8 +70,7 @@ if periode_filter:
 st.markdown(
     H.page_header(
         "Beranda",
-        "Antrean tindak lanjut. Paling mendesak di atas. Klik satu baris "
-        "untuk melihat seluruh proses mahasiswa itu.",
+        "Antrean tindak lanjut. Paling mendesak di atas. Klik satu baris untuk melihat seluruh proses mahasiswa itu.",
     ),
     unsafe_allow_html=True,
 )
@@ -184,9 +183,7 @@ for i, seg in enumerate(followup_segs):
 # Eligible segment: opportunity, not backlog. Visually set apart with its own
 # row and a one-line note so the "4 segmen aktif" KPI does not look off by one.
 st.caption(
-    "Segmen berikut bukan antrean tunggakan, melainkan peluang: mahasiswa siap "
-    "kirim yang belum dikirimkan. Tidak termasuk dalam total 4 segmen aktif di "
-    "kartu atas."
+    "Segmen berikut  menunjukkan peluang mahasiswa siap menjadi kandidat tetapi belum dikirimkan. Tidak termasuk dalam total 4 segmen aktif di kartu atas."
 )
 elig_col, _elig_spacer = st.columns([1, 3])
 with elig_col:
@@ -298,8 +295,6 @@ def _render_queue():
     if not is_eligible:
         st.caption(
             "Kolom Diam (hari) dihitung terhadap tanggal acuan "
-            + H.tanggal_id(data.ANCHOR.date()) + ". Pada snapshot beku, angka "
-            "besar memang wajar. Yang penting urutannya: paling lama di atas."
         )
     link_col = st.column_config.LinkColumn("Kontak", display_text="WhatsApp")
     return st.dataframe(
