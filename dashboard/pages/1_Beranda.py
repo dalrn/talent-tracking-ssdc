@@ -24,17 +24,29 @@ import config
 import schema
 from core import loader, clean, metrics
 from components import html as H
-from components import styles as S
 
 WARNA = config.WARNA
 
 
-# ---------------------------------------------------------------------------
-# Data. Loaded and cleaned once by the cached loader.
-# ---------------------------------------------------------------------------
+def _section_title(text):
+    """Section heading, one clear step below the page title (no accent tick).
 
-st.set_page_config(page_title="Beranda SSDC", layout="wide")
-S.inject()
+    Same treatment as Monitoring, Matching, and Analitik so the four pages read
+    as one product: navy, 1.12rem, no left accent bar.
+    """
+    st.markdown(
+        "<div style='font-size:1.12rem;font-weight:700;color:" + WARNA["navy"]
+        + ";margin:1.4rem 0 0.4rem;letter-spacing:-0.01em;'>" + H._esc(text)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Data. Loaded and cleaned once by the cached loader. Page config, global CSS,
+# and the shared sidebar are set once by app.py (the st.navigation controller),
+# not here. This page reads the date filter from session_state.
+# ---------------------------------------------------------------------------
 
 raw = loader.load_data()
 data = clean.clean_data(raw)
@@ -44,13 +56,22 @@ ss = data.status_student
 sa = data.student_all
 tc = data.tracking_company
 co = data.company
+
+# Date filter comes from the shared sidebar (set in app.py). Basis send_date:
+# tc is filtered by send_date, then the tracking queue (ts) is restricted to
+# the surviving tracking_company ids (same join pattern as Monitoring).
+periode_filter = st.session_state.get("rentang_periode")
+if periode_filter:
+    start, end = periode_filter
+    tc = tc[(tc["send_date"] >= start) & (tc["send_date"] <= end)]
+    valid_tc_ids = set(tc["id_tracking_company"].dropna())
+    ts = ts[ts["id_tracking_company"].isin(valid_tc_ids)]
+
 st.markdown(
     H.page_header(
         "Beranda",
         "Antrean tindak lanjut. Paling mendesak di atas. Klik satu baris "
         "untuk melihat seluruh proses mahasiswa itu.",
-        eyebrow="Antrean Aksi",
-        stamp="Data per " + str(data.ANCHOR.date()),
     ),
     unsafe_allow_html=True,
 )
@@ -80,7 +101,7 @@ with k1:
 with k2:
     st.markdown(
         H.kpi_card("Proses antre tindak lanjut", H._fmt_id(n_queue),
-                   "total 4 segmen aktif", accent=WARNA["warn"]),
+                   "total 4 segmen tunggakan, tanpa Eligible", accent=WARNA["warn"]),
         unsafe_allow_html=True,
     )
 with k3:
@@ -103,22 +124,73 @@ with k4:
 # not throwaway. Clicking a segment filters the queue below.
 # ===========================================================================
 
-st.markdown("### Pilih segmen")
+_section_title("Pilih segmen")
+
+# Reverse map: a funnel stage (progress_student) to its Beranda segment. Built
+# from BERANDA_SEGMEN_PROGRESS so the two never drift apart.
+_STAGE_TO_SEGMEN = {
+    stage: seg
+    for seg, stages in schema.BERANDA_SEGMEN_PROGRESS.items()
+    for stage in stages
+}
+
+
+def _normalize_beranda_segment(value):
+    """Resolve session_state['beranda_segment'] to a valid segment name.
+
+    A cross-link from Monitoring writes a dict {"stage": ..., "source_page":
+    ...} (spec 6.1 point 6), not a segment name. Map that stage to its Beranda
+    segment. A plain string that is already a valid segment passes through.
+    Anything unmappable falls back to the most urgent segment, so the page
+    never crashes on an unexpected value.
+    """
+    default = schema.BERANDA_SEGMEN_ORDER[0]
+    if isinstance(value, dict):
+        stage = value.get("stage")
+        return _STAGE_TO_SEGMEN.get(stage, default)
+    if value in schema.BERANDA_SEGMEN_ORDER:
+        return value
+    return default
+
 
 # Default to the most urgent segment. A cross-link from Monitoring may have
-# already written st.session_state['beranda_segment'] (spec 6.1 point 6).
-if "beranda_segment" not in st.session_state:
-    st.session_state["beranda_segment"] = schema.BERANDA_SEGMEN_ORDER[0]
+# already written st.session_state['beranda_segment'] (spec 6.1 point 6), so
+# normalize whatever is there to a valid segment name before using it.
+st.session_state["beranda_segment"] = _normalize_beranda_segment(
+    st.session_state.get("beranda_segment")
+)
 
-seg_cols = st.columns(len(schema.BERANDA_SEGMEN_ORDER))
-for i, seg in enumerate(schema.BERANDA_SEGMEN_ORDER):
+
+def _seg_button(seg):
+    """Render one segment button. Active segment is primary styled."""
+    selected = st.session_state["beranda_segment"] == seg
+    label = seg + "  (" + H._fmt_id(seg_counts[seg]) + ")"
+    if st.button(label, key="seg_btn_" + seg, use_container_width=True,
+                 type="primary" if selected else "secondary"):
+        st.session_state["beranda_segment"] = seg
+        st.rerun()
+
+
+# Four follow-up (backlog) segments first. Eligible is a different category, so
+# it is separated below, not lined up as if it were a fifth backlog queue.
+followup_segs = [
+    s for s in schema.BERANDA_SEGMEN_ORDER if s != schema.SEG_ELIGIBLE
+]
+seg_cols = st.columns(len(followup_segs))
+for i, seg in enumerate(followup_segs):
     with seg_cols[i]:
-        selected = st.session_state["beranda_segment"] == seg
-        label = seg + "  (" + H._fmt_id(seg_counts[seg]) + ")"
-        if st.button(label, key="seg_btn_" + seg, use_container_width=True,
-                     type="primary" if selected else "secondary"):
-            st.session_state["beranda_segment"] = seg
-            st.rerun()
+        _seg_button(seg)
+
+# Eligible segment: opportunity, not backlog. Visually set apart with its own
+# row and a one-line note so the "4 segmen aktif" KPI does not look off by one.
+st.caption(
+    "Segmen berikut bukan antrean tunggakan, melainkan peluang: mahasiswa siap "
+    "kirim yang belum dikirimkan. Tidak termasuk dalam total 4 segmen aktif di "
+    "kartu atas."
+)
+elig_col, _elig_spacer = st.columns([1, 3])
+with elig_col:
+    _seg_button(schema.SEG_ELIGIBLE)
 
 active_seg = st.session_state["beranda_segment"]
 
@@ -147,72 +219,131 @@ def _build_queue_display(active_seg):
         disp = elig[[
             "NIM", "nama", "program_studi", "IPK", "domisili", "CV", "hp",
         ]].copy()
-        disp["Mahasiswa"] = disp["nama"] + " (" + disp["NIM"] + ")"
+        # NIM in its own column, not glued into the name, so the name column is
+        # not stretched wide by a parenthesized number (frees room for Kontak).
         disp["Kontak"] = disp["hp"].map(H.wa_url)
         view = disp[[
-            "Mahasiswa", "program_studi", "IPK", "domisili", "CV", "Kontak",
+            "nama", "NIM", "program_studi", "IPK", "domisili", "CV", "Kontak",
         ]].rename(columns={
-            "program_studi": "Program", "domisili": "Domisili",
+            "nama": "Nama", "program_studi": "Program", "domisili": "Domisili",
         })
         return disp, view, True
 
     q = metrics.beranda_queue(ts, data.ANCHOR)
     q = q[q["segmen"] == active_seg].copy()
     q = q.merge(sa[["NIM", "hp"]], on="NIM", how="left").reset_index(drop=True)
-    q["Mahasiswa"] = q["student_name"] + " (" + q["NIM"] + ")"
     q["Perusahaan & posisi"] = q["company"] + " - " + q["position"]
     q["Kontak"] = q["hp"].map(H.wa_url)
     view = q[[
-        "Mahasiswa", "Perusahaan & posisi", "progress_student", "diam_hari",
-        "Kontak",
+        "student_name", "NIM", "Perusahaan & posisi", "progress_student",
+        "diam_hari", "Kontak",
     ]].rename(columns={
-        "progress_student": "Tahap", "diam_hari": "Diam (hari)",
+        "student_name": "Nama", "progress_student": "Tahap",
+        "diam_hari": "Diam (hari)",
     })
     return q, view, False
 
 
 disp_full, view, is_eligible = _build_queue_display(active_seg)
 
-# Search filter over NIM, name, and company (native input).
-cari = st.text_input("Cari NIM, nama, atau perusahaan", key="cari_queue")
+# Search filter over NIM, name, and company (native input, placeholder inside).
+cari = st.text_input(
+    "Cari NIM, nama, atau perusahaan",
+    key="cari_queue",
+    placeholder="Ketik NIM, nama, atau perusahaan",
+)
 if cari.strip():
     key = cari.strip().lower()
     hay = disp_full["NIM"].astype(str).str.lower()
-    hay = hay + " " + disp_full["Mahasiswa"].str.lower()
+    name_col = "nama" if is_eligible else "student_name"
+    hay = hay + " " + disp_full[name_col].astype(str).str.lower()
     if not is_eligible:
         hay = hay + " " + disp_full["Perusahaan & posisi"].str.lower()
     keep = hay.str.contains(key, na=False)
     disp_full = disp_full[keep].reset_index(drop=True)
     view = view.loc[disp_full.index].reset_index(drop=True)
 
-left, right = st.columns([3, 2])
 
-with left:
-    st.markdown("#### " + active_seg + "  (" + H._fmt_id(len(view)) + " baris)")
+# Read any prior selection first: the layout depends on whether a row is
+# already selected. At rest (no selection) the queue table takes the full width
+# so every column, including Kontak, is readable. Once a row is picked the
+# detail panel opens beside a narrower table.
+def _selected_rows(state):
+    """Pull the selected row indices out of a dataframe widget state.
+
+    The st.dataframe selection state can be an object with a .selection
+    attribute or a plain dict, depending on context. Handle both, and always
+    return a list of row indices.
+    """
+    if state is None:
+        return []
+    selection = getattr(state, "selection", None)
+    if selection is None and isinstance(state, dict):
+        selection = state.get("selection")
+    if selection is None:
+        return []
+    rows = getattr(selection, "rows", None)
+    if rows is None and isinstance(selection, dict):
+        rows = selection.get("rows")
+    return list(rows) if rows else []
+
+
+prev_rows = _selected_rows(st.session_state.get("queue_df"))
+has_selection = bool(prev_rows) and prev_rows[0] < len(view)
+
+
+def _render_queue():
+    """Render the queue header and selectable table. Returns the select event."""
+    _section_title(active_seg + "  (" + H._fmt_id(len(view)) + " baris)")
+    if not is_eligible:
+        st.caption(
+            "Kolom Diam (hari) dihitung terhadap tanggal acuan "
+            + H.tanggal_id(data.ANCHOR.date()) + ". Pada snapshot beku, angka "
+            "besar memang wajar. Yang penting urutannya: paling lama di atas."
+        )
     link_col = st.column_config.LinkColumn("Kontak", display_text="WhatsApp")
-    event = st.dataframe(
+    return st.dataframe(
         view,
         use_container_width=True,
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
-        column_config={"Kontak": link_col},
+        column_config={
+            "Kontak": link_col,
+            "NIM": st.column_config.TextColumn("NIM", width="small"),
+        },
         height=420,
         key="queue_df",
     )
 
 
-# ---------------------------------------------------------------------------
-# Drill-down panel. The team differentiator: one student, every process.
-# ---------------------------------------------------------------------------
-
-with right:
-    st.markdown("#### Detail mahasiswa")
-    sel_rows = event.selection.rows if event and event.selection else []
+if not has_selection:
+    # Full-width table at rest. The detail panel prompt sits below, compact.
+    event = _render_queue()
+    sel_rows = _selected_rows(event)
     if not sel_rows:
         st.caption("Klik satu baris di antrean untuk melihat profil dan semua "
-                   "prosesnya.")
-    else:
+                   "prosesnya di panel detail.")
+
+if has_selection:
+    left, right = st.columns([3, 2])
+    with left:
+        event = _render_queue()
+    right_ctx = right
+else:
+    right_ctx = None
+
+
+# ---------------------------------------------------------------------------
+# Drill-down panel. The team differentiator: one student, every process.
+# Only rendered once a row is selected, beside a narrower table.
+# ---------------------------------------------------------------------------
+
+sel_rows = _selected_rows(event)
+
+if sel_rows and right_ctx is not None:
+    with right_ctx:
+        _section_title("Detail mahasiswa")
         idx = sel_rows[0]
         nim = str(disp_full.iloc[idx]["NIM"])
 
@@ -232,8 +363,8 @@ with right:
             st.markdown("##### " + prof["nama"] + " (" + nim + ")")
             st.caption(
                 "Program: " + str(prof["program_studi"])
-                + "  ·  IPK: " + ipk_txt
-                + "  ·  Domisili: " + str(prof["domisili"])
+                + ", IPK: " + ipk_txt
+                + ", Domisili: " + str(prof["domisili"])
             )
             st.caption("Tools: " + tools_txt)
 

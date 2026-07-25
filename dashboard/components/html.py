@@ -29,12 +29,34 @@ def _fmt_id(n):
     return "{:,}".format(int(n)).replace(",", ".")
 
 
-def page_header(title, subtitle="", eyebrow="SSDC Dashboard", stamp=None):
+_BULAN_ID = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+]
+
+
+def tanggal_id(d):
+    """Format a date as '17 Mei 2025' (Indonesian long form)."""
+    return str(d.day) + " " + _BULAN_ID[d.month - 1] + " " + str(d.year)
+
+
+def pct_id(value, decimals=1):
+    """Format a percent with an Indonesian decimal comma, e.g. '22,9%'.
+
+    value is already a percentage number (22.9), not a fraction. decimals=0
+    drops the decimal part entirely.
+    """
+    text = ("{:." + str(decimals) + "f}").format(value)
+    return text.replace(".", ",") + "%"
+
+
+def page_header(title, subtitle="", eyebrow="", stamp=None):
     """The page masthead. Replaces a bare st.title + st.caption.
 
-    eyebrow is a small uppercase kicker for brand consistency across pages.
-    stamp is an optional pill (used for the "Data per <date>" freshness note).
-    Styled by the .page-header rules in components/styles.py. Returns HTML.
+    eyebrow is a small uppercase kicker above the title. It is off by default;
+    pass a non-empty string only if a page wants one. stamp is an optional pill
+    (used for the "Data per <date>" freshness note). Styled by the .page-header
+    rules in components/styles.py. Returns HTML.
     """
     eyebrow_html = ""
     if eyebrow:
@@ -51,6 +73,32 @@ def page_header(title, subtitle="", eyebrow="SSDC Dashboard", stamp=None):
         + '<div class="ph-title">' + _esc(title) + '</div>'
         + sub_html
         + stamp_html
+        + '</div>'
+    )
+
+
+def health_chip(stale, x_days, drift_ok=True, drift_tip="", label="Kesehatan data"):
+    """Compact data-health widget for the top-right of a page header.
+
+    Condenses the drift status and the stale-sync count into one small stat.
+    stale is the count of sync rows older than x_days. drift_ok picks the AMAN
+    (green) vs PERIKSA (red) badge; drift_tip is the hover tooltip that carries
+    the full explanation so no space is spent on it. Styled by .health-chip in
+    components/styles.py. Returns an HTML string.
+    """
+    badge_cls = "hc-badge" if drift_ok else "hc-badge warn"
+    badge_txt = "AMAN" if drift_ok else "PERIKSA"
+    return (
+        '<div class="health-chip">'
+        + '<div class="hc-top">'
+        + '<span class="hc-label">' + _esc(label) + '</span>'
+        + '<span class="' + badge_cls + '" title="' + _esc(drift_tip) + '">'
+        + badge_txt + '</span>'
+        + '</div>'
+        + '<div class="hc-main">'
+        + '<span class="hc-value">' + _fmt_id(stale) + '</span>'
+        + '<span class="hc-unit">baris outdated</span>'
+        + '</div>'
         + '</div>'
     )
 
@@ -242,7 +290,7 @@ def funnel_bar(label, sublabel, aktif, gugur=0, gugur_label="",
             + WARNA["ref"] + ';color:' + WARNA["ink"] + ';display:flex;'
             + 'align-items:center;padding:0 10px;font-size:0.78rem;'
             + 'white-space:nowrap;overflow:hidden;border-radius:0 4px 4px 0;">'
-            + '-' + _esc(_fmt_id(gugur)) + ' ' + _esc(gugur_label) + '</div>'
+            + _esc(_fmt_id(gugur)) + ' ' + _esc(gugur_label) + '</div>'
         )
     bar_html += '</div>'
 

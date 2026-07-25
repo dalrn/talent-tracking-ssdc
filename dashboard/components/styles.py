@@ -31,6 +31,8 @@ def _root_vars():
     return (
         ":root{"
         # palette, mirrored from config.WARNA so CSS and Python share one source
+        "--c-navy:" + w["navy"] + ";"
+        "--c-gold:" + w["gold"] + ";--c-gold-bg:" + w["gold_bg"] + ";"
         "--c-accent:" + w["accent"] + ";"
         "--c-bar:" + w["bar"] + ";--c-barlite:" + w["barlite"] + ";"
         "--c-ref:" + w["ref"] + ";"
@@ -74,18 +76,18 @@ html, body, [class*="css"], .stApp, [data-testid="stAppViewContainer"]{
   font-feature-settings: 'tnum' 1, 'cv01' 1, 'ss01' 1;
 }
 
-/* Headings: tighter, more deliberate than the Streamlit default. */
-h1, h2, h3, h4{ color: var(--c-ink); letter-spacing: -0.015em; font-weight: 700; }
+/* Headings: navy brand color, tighter than the Streamlit default. No rule
+   line under h2 (that read as blocky); the accent tick carries the rhythm. */
+h1, h2, h3, h4{ color: var(--c-navy); letter-spacing: -0.015em; font-weight: 700; }
 h1{ font-size: 2.15rem; font-weight: 800; line-height: 1.12; }
-h2{ font-size: 1.5rem; margin-top: 1.9rem; padding-bottom: .5rem;
-    border-bottom: 1px solid var(--c-line); }
-h3{ font-size: 1.15rem; margin-top: 1.1rem; }
+h2{ font-size: 1.42rem; margin-top: 2rem; }
+h3{ font-size: 1.12rem; margin-top: 1.1rem; }
 h4{ font-size: .98rem; color: var(--c-ink2); }
 /* Accent tick before section headers (h2) for a branded rhythm. */
-[data-testid="stMarkdownContainer"] h2{ position: relative; padding-left: 15px; }
+[data-testid="stMarkdownContainer"] h2{ position: relative; padding-left: 14px; }
 [data-testid="stMarkdownContainer"] h2::before{
-  content:""; position:absolute; left:0; top:.18em; bottom:.42em; width:4px;
-  border-radius:3px; background: linear-gradient(180deg,var(--c-accent),var(--c-bar));
+  content:""; position:absolute; left:0; top:.14em; bottom:.18em; width:4px;
+  border-radius:3px; background: var(--c-navy);
 }
 
 /* ---- Page frame & chrome --------------------------------------------- */
@@ -178,20 +180,18 @@ footer{ visibility: hidden; }
 /* html.py sets a hairline border + flat panel inline; upgrade to elevated
    cards with a top accent hairline and a hover lift. !important beats the
    inline border only where it must. */
+/* Flat typographic stat, not a box. No border, no shadow, no fill: a navy
+   left rule delineates it on the white canvas. */
 .kpi-card{
-  border: 1px solid var(--c-line) !important;
-  border-radius: var(--radius) !important;
-  box-shadow: var(--shadow-sm);
-  padding: 18px 18px 16px !important;
-  position: relative; overflow: hidden;
-  transition: transform .12s ease, box-shadow .16s ease;
+  border: none !important;
+  border-left: 3px solid var(--c-navy) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 2px 0 2px 16px !important;
+  position: relative;
 }
-.kpi-card::before{
-  content:""; position:absolute; top:0; left:0; right:0; height:3px;
-  background: linear-gradient(90deg,var(--c-accent),var(--c-bar));
-  opacity:.9;
-}
-.kpi-card:hover{ transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.kpi-card::before{ display: none; }
 .kpi-title{
   text-transform: uppercase; letter-spacing: .05em;
   font-weight: 600 !important; font-size: .72rem !important;
@@ -240,24 +240,16 @@ hr, [data-testid="stMarkdownContainer"] hr{
    instead of stair-stepping when subtitles differ in length. */
 .kpi-card{ min-height: 132px; display: flex; flex-direction: column; justify-content: center; }
 
-/* Bordered containers (st.container(border=True)) become elevated surfaces.
-   This is what turns loose stacks of widgets into grouped "cards" that read
-   like a real BI dashboard. */
+/* Grouping containers stay flat: no box. Content is separated by whitespace
+   and the section tick, not outlines. This is the navy-and-white look. */
 [data-testid="stVerticalBlockBorderWrapper"]{
-  background: var(--c-panel);
-  border: 1px solid var(--c-line) !important;
-  border-radius: var(--radius) !important;
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
-/* A KPI card sitting inside a surface should not double up borders/shadows. */
-[data-testid="stVerticalBlockBorderWrapper"] .kpi-card{
-  border: none !important; box-shadow: none !important; background: transparent !important;
-  padding: 4px 6px !important; min-height: 0;
-}
-[data-testid="stVerticalBlockBorderWrapper"] .kpi-card::before{ display: none; }
-[data-testid="stVerticalBlockBorderWrapper"] .callout{
-  box-shadow: none; border-left-width: 3px;
-}
+[data-testid="stVerticalBlockBorderWrapper"] .kpi-card{ padding-left: 16px !important; }
+[data-testid="stVerticalBlockBorderWrapper"] .callout{ box-shadow: none; }
 
 /* A soft vertical divider between metrics inside one surface. */
 .metric-divider{
@@ -279,7 +271,7 @@ hr, [data-testid="stMarkdownContainer"] hr{
 }
 .page-header .ph-title{
   font-size: 2.15rem; font-weight: 800; letter-spacing: -0.02em;
-  line-height: 1.1; color: var(--c-ink);
+  line-height: 1.1; color: var(--c-navy);
 }
 .page-header .ph-sub{
   color: var(--c-ink2); font-size: .92rem; margin-top: 8px; max-width: 70ch;
@@ -289,6 +281,46 @@ hr, [data-testid="stMarkdownContainer"] hr{
   display:inline-block; margin-top: 10px; font-size: .74rem; font-weight: 600;
   color: var(--c-ink2); background: var(--c-panel); border: 1px solid var(--c-line);
   border-radius: 999px; padding: 3px 11px; box-shadow: var(--shadow-sm);
+}
+
+/* ---- Compact data-health widget (html.health_chip) ------------------- */
+/* Sits in the top-right beside the page title. Condenses the whole
+   "Kesehatan data" section into one small navy-rule stat. */
+/* Self-contained status panel, not a heading: no navy accent bar, a hairline
+   border and panel fill set it apart from the section titles. The count is a
+   frozen-snapshot artifact, so it is small and neutral; the AMAN badge, not
+   the number, carries the status. */
+.health-chip{
+  border: 1px solid var(--c-line); background: var(--c-panel);
+  border-radius: 8px; padding: 8px 12px; margin-top: 4px;
+}
+.health-chip .hc-top{ display:flex; align-items:center; gap:8px; margin-bottom: 3px; }
+.health-chip .hc-label{
+  text-transform: uppercase; letter-spacing: .05em; font-size: .64rem;
+  font-weight: 700; color: var(--c-muted);
+}
+.health-chip .hc-badge{
+  font-weight: 700; font-size: .62rem; letter-spacing: .03em;
+  border-radius: 999px; padding: 1px 8px; cursor: help;
+  color: var(--c-ok); background: var(--c-ok-bg); border: 1px solid var(--c-ok);
+}
+.health-chip .hc-badge.warn{ color: var(--c-crit); background: var(--c-crit-bg); border-color: var(--c-crit); }
+.health-chip .hc-main{ display:flex; align-items:baseline; gap:6px; }
+.health-chip .hc-value{
+  font-size: .95rem; font-weight: 600; line-height: 1; color: var(--c-ink2);
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+}
+.health-chip .hc-unit{ color: var(--c-muted); font-size: .72rem; font-weight: 500; }
+
+/* Threshold popover: quiet text-link trigger, and a narrow content panel. */
+[data-testid="stPopover"] button{
+  border: none !important; box-shadow: none !important; background: transparent !important;
+  color: var(--c-accent) !important; font-size: .76rem !important; font-weight: 600 !important;
+  padding: 2px 0 0 14px !important;
+}
+[data-testid="stPopover"] button:hover{ text-decoration: underline; transform: none; }
+[data-testid="stPopoverBody"], div[data-baseweb="popover"] [data-testid="stVerticalBlock"]{
+  max-width: 320px;
 }
 """
 

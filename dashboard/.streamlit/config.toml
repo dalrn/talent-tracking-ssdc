@@ -1,20 +1,20 @@
 # Streamlit theme. This is the first-order fix for the "vanilla" look:
 # it repaints every native widget accent (tabs, radio, slider, checkbox,
-# primary button) from Streamlit red to the SSDC teal, and sets the page
-# and panel backgrounds to match config.WARNA. Fine typography, card
-# elevation, and chrome cleanup live in components/styles.py.
+# primary button) to the CDC navy, and sets the canvas white to match the
+# navy-and-white brand. Fine typography, flat cards, and chrome cleanup live
+# in components/styles.py.
 #
 # Colors here MUST stay in sync with WARNA in config.py:
-#   primaryColor           = WARNA["accent"]
-#   backgroundColor        = page (very slightly warmed for depth against panels)
-#   secondaryBackgroundColor = WARNA["panel"]
+#   primaryColor           = WARNA["navy"]
+#   backgroundColor        = white canvas
+#   secondaryBackgroundColor = a faint cool tint for the sidebar
 #   textColor              = WARNA["ink"]
 
 [theme]
 base = "light"
-primaryColor = "#0f5f66"
-backgroundColor = "#f4f6f4"
-secondaryBackgroundColor = "#ffffff"
+primaryColor = "#16324f"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f8fa"
 textColor = "#14181a"
 # Font family is driven from styles.py (Inter, injected via CSS) so the look
 # is identical across Streamlit versions. "sans serif" is just the fallback.

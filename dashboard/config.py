@@ -52,15 +52,20 @@ SYNC_SLIDER_DEFAULT = 30
 # Ganjil = August to January. Genap = February to July.
 SEMESTER_GANJIL_BULAN = [8, 9, 10, 11, 12, 1]
 
-# Palette.
+# Palette. Derived from the CDC FMIPA UGM logo: deep navy, teal, gold star.
+# navy   = brand structure (headings, page-header title, ticks, primary)
+# accent = teal, the sparing pop (headline metric, eyebrow, chart data)
+# gold   = the star, a highlight only (never for large fills)
 WARNA = {
-    "accent": "#0f5f66",
+    "navy": "#16324f",
+    "accent": "#1b7a70",
+    "gold": "#eda31e", "gold_bg": "#fbf1dd",
     "crit": "#b42318", "crit_bg": "#fdeceb",
     "warn": "#b25b06", "warn_bg": "#fbf1e6",
     "watch": "#8a6d14", "watch_bg": "#f8f3e2",
     "hot": "#155fa0", "hot_bg": "#eaf1f8",
     "ok": "#256a3d", "ok_bg": "#e9f3ec",
     "ink": "#14181a", "ink2": "#4a5157", "muted": "#828b90",
-    "line": "#d5dad6", "panel": "#ffffff", "page": "#eef0ee",
-    "bar": "#3a8088", "barlite": "#bcd6d3", "ref": "#c98a3c",
+    "line": "#e2e7ec", "panel": "#ffffff", "page": "#ffffff",
+    "bar": "#2f857e", "barlite": "#bcd6d3", "ref": "#c98a3c",
 }
