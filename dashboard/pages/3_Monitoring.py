@@ -276,7 +276,7 @@ if view == "Mahasiswa":
     with st.container(border=True):
         _panel_marker()
         _section_title("Ringkasan performa perusahaan")
-        st.caption("Analisis penuh dix halaman Analitik.")
+        st.caption("Analisis penuh di halaman Analitik.")
 
         league = metrics.company_league(ts_filtered, min_n=config.MIN_N_RANKING)
         gate_count = metrics.company_league_gate_count(ts_filtered, min_n=config.MIN_N_RANKING)
@@ -536,12 +536,10 @@ if view == "Perusahaan":
         if worst_company is not None:
             st.markdown(
                 H.callout(
-                    "Perusahaan ghosting terbanyak pun hanya " + H._fmt_id(worst_k)
-                    + " kasus (" + str(worst_company) + "). Angka ini diurutkan "
-                    "menurut jumlah kasus, bukan rate seperti tabel di atas. "
-                    "Artinya ghosting adalah masalah sistemik yang butuh "
-                    "mekanisme follow up terstruktur, bukan sekadar menandai "
-                    "beberapa perusahaan.",
+                    "Perusahaan ghosting terbanyak hanya " + H._fmt_id(worst_k)
+                    + " kasus (" + str(worst_company) + "). Ghosting adalah "
+                    "masalah sistematik yang butuh mekanisme follow up "
+                    "terstruktur, bukan sekadar menandai beberapa perusahaan.",
                     kind="watch", title="Tersebar, bukan segelintir pelaku",
                 ),
                 unsafe_allow_html=True,
