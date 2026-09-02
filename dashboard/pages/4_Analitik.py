@@ -392,9 +392,8 @@ league = C.company_league(ts, FKEY)
 gate_count = C.company_league_gate_count(ts, FKEY)
 
 st.caption(
-    "Gate ranking: minimal " + str(min_n) + " pengiriman. "
-    + H._fmt_id(gate_count) + " perusahaan lolos gate. Baris di bawah gate "
-    "diberi tanda n kecil."
+    "Terdapat " + H._fmt_id(gate_count) + " perusahaan dengan minimal "
+    + str(min_n) + " pengiriman."
 )
 
 sort_label = st.selectbox(
@@ -467,9 +466,7 @@ n_lag = len(C.placed_belum_update_status(ss, ts, FKEY))
 st.markdown(
     H.callout(
         H._fmt_id(n_luar) + " mahasiswa berstatus Placed tanpa satu pun jejak "
-        "di tracking, jadi kemungkinan besar mereka ditempatkan di luar alur "
-        "CDC. Ini batas cakupan BT-04, bukan isu sinkronisasi. Dicatat apa "
-        "adanya dan tidak dihitung sebagai keberhasilan program.",
+        "di tracking. Tidak dihitung sebagai keberhasilan program CDC.",
         kind="watch", title="Placed di luar alur CDC",
     ),
     unsafe_allow_html=True,

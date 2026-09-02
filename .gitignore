@@ -1,3 +1,10 @@
 Bukpan SSDC.pdf
 README.md
 dashboard/verify_foundation.py
+# Bytecode Python. Dihasilkan ulang otomatis tiap kali kode dijalankan, jadi
+# tiap anggota tim menghasilkan versi berbeda dan setiap merge pasti bentrok.
+__pycache__/
+*.py[cod]
+
+# Virtual environment.
+.venv/

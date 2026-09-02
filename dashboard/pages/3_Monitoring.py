@@ -264,14 +264,7 @@ if view == "Mahasiswa":
         if any(v > 0 for v in drop_vals):
             bottleneck_stage = max(drop_counts, key=drop_counts.get)
             bottleneck_val = drop_counts[bottleneck_stage]
-            st.markdown(
-                H.callout(
-                    H._fmt_id(bottleneck_val) + " kandidat gugur di tahap ini, "
-                    "kebocoran terbesar di sepanjang corong.",
-                    kind="watch", title="Kebocoran terbesar: " + str(bottleneck_stage),
-                ),
-                unsafe_allow_html=True,
-            )
+
 
     # =======================================================================
     # 2. Performa perusahaan (ringkas). Analisis penuh ada di Analitik.
@@ -283,7 +276,7 @@ if view == "Mahasiswa":
     with st.container(border=True):
         _panel_marker()
         _section_title("Ringkasan performa perusahaan")
-        st.caption("Analisis penuh dix halaman Analitik.")
+        st.caption("Analisis penuh di halaman Analitik.")
 
         league = C.company_league(ts_filtered, FKEY, min_n=config.MIN_N_RANKING)
         gate_count = C.company_league_gate_count(ts_filtered, FKEY, min_n=config.MIN_N_RANKING)
@@ -539,12 +532,10 @@ if view == "Perusahaan":
         if worst_company is not None:
             st.markdown(
                 H.callout(
-                    "Perusahaan ghosting terbanyak pun hanya " + H._fmt_id(worst_k)
-                    + " kasus (" + str(worst_company) + "). Angka ini diurutkan "
-                    "menurut jumlah kasus, bukan rate seperti tabel di atas. "
-                    "Artinya ghosting adalah masalah sistemik yang butuh "
-                    "mekanisme follow up terstruktur, bukan sekadar menandai "
-                    "beberapa perusahaan.",
+                    "Perusahaan ghosting terbanyak hanya " + H._fmt_id(worst_k)
+                    + " kasus (" + str(worst_company) + "). Ghosting adalah "
+                    "masalah sistematik yang butuh mekanisme follow up "
+                    "terstruktur, bukan sekadar menandai beberapa perusahaan.",
                     kind="watch", title="Tersebar, bukan segelintir pelaku",
                 ),
                 unsafe_allow_html=True,
@@ -667,19 +658,4 @@ n_stage_placement = int(metrics.is_stage_placement(ts_filtered).sum())
 n_success_placement = int(metrics.is_placement_success(ts_filtered).sum())
 selisih = n_success_placement - n_stage_placement
 
-st.markdown("---")
-st.markdown(
-    H.callout(
-        "Corong di halaman ini memakai kolom progress_student untuk posisi "
-        "aktif, totalnya " + H._fmt_id(n_stage_placement) + " di tahap "
-        "Placement. Definisi resmi keberhasilan (BT-04) memakai kolom "
-        "rejection bernilai Placement, totalnya " + H._fmt_id(n_success_placement)
-        + ". Selisih " + H._fmt_id(selisih) + " adalah placement yang sudah "
-        "diarsipkan ke Finish, tetap dihitung berhasil. Kolom "
-        "tracking_company.progress tidak dipakai di halaman ini kecuali untuk "
-        "mendeteksi status Draft pada request. Ini konsisten dengan halaman "
-        "Analitik.",
-        kind="muted", title="Catatan definisi",
-    ),
-    unsafe_allow_html=True,
-)
+

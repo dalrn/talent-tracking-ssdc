@@ -223,29 +223,44 @@ def _clean_impl(raw):
     )
 
 
-def clean_data(raw):
+try:  # pragma: no cover - exercised only under `streamlit run`
+    import streamlit as _st
+
+    @_st.cache_resource(show_spinner=False)
+    def _clean_cached(_raw, cache_key):
+        """Cached cleaning, keyed on cache_key alone.
+
+        The decorator MUST be applied at module level. Decorating a function
+        defined inside clean_data() builds a brand new cache object on every
+        call, so every lookup misses and the whole cleaning pass re-runs.
+
+        _raw is underscore-prefixed so Streamlit does not try to hash the
+        RawData dataclass (it holds DataFrames and is not hashable); cache_key
+        carries the value that actually decides cache validity.
+        """
+        return _clean_impl(_raw)
+
+except Exception:  # streamlit not importable (plain import, test runner)
+    _st = None
+    _clean_cached = None
+
+
+def clean_data(raw, cache_key="default"):
     """Cached cleaning for Streamlit. Falls back to the plain call off app.
 
     Streamlit reruns a whole page script on every widget interaction, so an
     uncached clean_data() re-ran the full cleaning pass on every click. The
-    result is a read-only CleanData holding DataFrames shared by all four
-    pages, so cache_resource is the right cache: no per-call hashing of the
-    RawData argument, and one shared instance instead of a copy per caller.
+    result is a read-only CleanData shared by all four pages, so
+    cache_resource is the right cache: no hashing of the RawData argument,
+    and one shared instance instead of a copy per caller.
 
-    Keyed on the identity of the RawData object rather than its contents.
-    loader.load_data() is itself cached and hands back the same RawData for
-    the same data_dir, so that identity is stable for the life of the app and
-    changes only when the loader cache is cleared and the CSVs are re-read.
+    cache_key identifies the dataset being cleaned. It defaults to a constant
+    because the app loads exactly one dataset from config.DATA_DIR; callers
+    that load a different directory should pass that directory so the two do
+    not share a cache entry. Note that the identity of the RawData object is
+    deliberately NOT used as the key: it is not stable across reruns, so
+    keying on it silently missed the cache on every interaction.
     """
-    try:
-        import streamlit as st
-    except Exception:
+    if _clean_cached is None:
         return _clean_impl(raw)
-
-    @st.cache_resource(show_spinner=False)
-    def _cached(_raw, cache_key):
-        # _raw is underscore-prefixed so Streamlit skips hashing it; cache_key
-        # carries the identity that actually decides cache validity.
-        return _clean_impl(_raw)
-
-    return _cached(raw, id(raw))
+    return _clean_cached(raw, cache_key)
