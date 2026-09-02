@@ -45,8 +45,9 @@ def _get_matching_engine():
     same already-cleaned dataframes every other section of this page uses,
     not a second raw CSV read.
     """
-    raw_ = loader.load_data()
-    cleaned = clean.clean_data(raw_)
+    # clean_data() is itself cached now, so this returns the same CleanData
+    # instance the page body already holds; no second read or clean happens.
+    cleaned = clean.clean_data(loader.load_data())
     engine = matching.MatchingEngine(dataframes={
         "student_all": cleaned.student_all,
         "status_student": cleaned.status_student,

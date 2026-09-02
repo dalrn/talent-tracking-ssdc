@@ -23,6 +23,7 @@ import plotly.graph_objects as go
 import core  # noqa: F401
 import config
 from core import loader, clean, metrics
+from core import cached as C
 from components import html as H
 
 WARNA = config.WARNA
@@ -66,10 +67,15 @@ if periode_filter:
     valid_tc_ids = set(tc["id_tracking_company"].dropna())
     ts = ts[ts["id_tracking_company"].isin(valid_tc_ids)]
 
+# Cache key for the metric wrappers in core/cached.py. The heavy metrics on
+# this page depend only on the date range; the trend mode radio and the sort
+# selectbox rerun the script but hit cache instead of recomputing.
+FKEY = C.filter_key(periode_filter)
+
 # Data-health (BT-08) is condensed into a compact chip beside the title
 # instead of a full section lower down. Drift status rides in the badge
 # tooltip; the freshness threshold slider hides inside a popover.
-drift = metrics.drift_student_all_vs_status(sa, ss)
+drift = C.drift_student_all_vs_status(sa, ss, FKEY)
 drift_ok = sum(drift.values()) == 0
 x_days = st.session_state.get("sync_slider", config.SYNC_SLIDER_DEFAULT)
 stale = metrics.sync_stale_count(ss, data.SYNC_REF, x_days)
@@ -190,7 +196,7 @@ mode_label = st.radio(
 )
 mode = "bulan" if mode_label == "Bulanan" else "semester"
 
-trend = metrics.trend_per_period(ts, tc, mode)
+trend = C.trend_per_period(ts, tc, mode, FKEY)
 
 # Mark the partial last period. Bars for complete periods use bar color, the
 # partial one is drawn lighter with a hatch pattern.
@@ -271,8 +277,8 @@ _section_title("Perbandingan antar segmen")
 
 overall_rate = rate_shipment  # the overall average reference line
 
-seg_prog = metrics.segment_program(ts, ss)
-seg_sect = metrics.segment_sector(ts, tc, co)
+seg_prog = C.segment_program(ts, ss, FKEY)
+seg_sect = C.segment_sector(ts, tc, co, FKEY)
 
 # Small sample threshold reuses the ranking gate from config for consistency.
 min_n = config.MIN_N_RANKING
@@ -382,8 +388,8 @@ st.markdown(
 
 _section_title("Perusahaan mitra")
 
-league = metrics.company_league(ts)
-gate_count = metrics.company_league_gate_count(ts)
+league = C.company_league(ts, FKEY)
+gate_count = C.company_league_gate_count(ts, FKEY)
 
 st.caption(
     "Gate ranking: minimal " + str(min_n) + " pengiriman. "
@@ -451,9 +457,9 @@ st.caption("Menampilkan 25 baris teratas sesuai urutan. Titik = center Wilson, "
 
 _section_title("Catatan cakupan dan kualitas data")
 
-n_luar = len(metrics.placed_diluar_cakupan(ss, ts))
+n_luar = len(C.placed_diluar_cakupan(ss, ts, FKEY))
 n_anom = int(ts["is_anomali"].sum())
-n_lag = len(metrics.placed_belum_update_status(ss, ts))
+n_lag = len(C.placed_belum_update_status(ss, ts, FKEY))
 
 # The top scope finding gets its own callout so its text has room to breathe,
 # instead of being cramped into a narrow table cell. Number and treatment

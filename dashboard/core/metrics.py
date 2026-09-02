@@ -7,6 +7,7 @@
 # a boolean mask, or a dataframe. Each has a short docstring with its
 # definition and source columns.
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
@@ -190,22 +191,32 @@ def klasifikasi_ghosting(tracking_student, ghosting_mask=None):
     pl = tracking_student[tracking_student["rejection"] == schema.REJ_PLACEMENT]
     pl_min = pl.groupby("NIM")["last_update"].min()
 
-    types = []
-    for _, row in ghost.iterrows():
-        nim = row["NIM"]
-        t_ghost = row["last_update"]
-        if nim not in pl_min.index:
-            types.append("murni_perusahaan")
-            continue
-        first_pl = pl_min.loc[nim]
-        if pd.isna(first_pl) or pd.isna(t_ghost):
-            types.append("tak_tentu")
-        elif first_pl < t_ghost:
-            types.append("mahasiswa_mangkir")
-        elif first_pl > t_ghost:
-            types.append("murni_perusahaan")
-        else:
-            types.append("tak_tentu")
+    # Align each ghosting row with its NIM's earliest placement date. A NIM
+    # with no placement at all maps to NaT, which is the "no placement" case
+    # below; the same three-way comparison then runs over whole columns.
+    first_pl = ghost["NIM"].map(pl_min)
+    t_ghost = ghost["last_update"]
+    has_placement = ghost["NIM"].isin(pl_min.index).to_numpy()
+
+    # np.select picks the first matching condition, so order mirrors the
+    # original if/elif chain exactly.
+    unknown = (first_pl.isna() | t_ghost.isna()).to_numpy()
+    types = np.select(
+        [
+            ~has_placement,
+            unknown,
+            (first_pl < t_ghost).to_numpy(),
+            (first_pl > t_ghost).to_numpy(),
+        ],
+        [
+            "murni_perusahaan",
+            "tak_tentu",
+            "mahasiswa_mangkir",
+            "murni_perusahaan",
+        ],
+        # Equal dates fall through to here, as in the original else branch.
+        default="tak_tentu",
+    )
 
     out = ghost.copy()
     out["tipe_ghosting"] = types
@@ -325,6 +336,49 @@ def wilson(k, n, z=config.WILSON_Z):
     return (center - half, center, center + half)
 
 
+def wilson_vectorised(k, n, z=config.WILSON_Z):
+    """Wilson interval over whole arrays. Same formula as wilson(), per row.
+
+    k and n are array-likes of equal length. Returns (lo, center, hi) as three
+    numpy arrays. n == 0 yields (0, 0, 0) for that row, matching wilson().
+    Exists so company_league does not call wilson() once per company through
+    iterrows(); the scalar wilson() stays the single definition of the maths
+    and is still used wherever one interval is needed.
+    """
+    k = np.asarray(k, dtype="float64")
+    n = np.asarray(n, dtype="float64")
+
+    # Guard n == 0 during the maths, then zero those rows out at the end.
+    safe_n = np.where(n == 0, 1.0, n)
+    p = k / safe_n
+    denom = 1 + z * z / safe_n
+    center = (p + z * z / (2 * safe_n)) / denom
+    half = z * np.sqrt(p * (1 - p) / safe_n + z * z / (4 * safe_n * safe_n)) / denom
+
+    lo = center - half
+    hi = center + half
+    zero = n == 0
+    return (
+        np.where(zero, 0.0, lo),
+        np.where(zero, 0.0, center),
+        np.where(zero, 0.0, hi),
+    )
+
+
+def _n_and_k_per_company(tracking_student, rejection_value):
+    """Shipments (n) and matching-rejection rows (k) per company.
+
+    Shared by company_league and ghosting_rate_per_company, which differ only
+    in which rejection value they count. Both counts come from one groupby on
+    a boolean column, so no Python-level lambda runs per company.
+    Source columns: company, rejection, is_anomali.
+    """
+    base = ts_bersih(tracking_student)
+    flag = base["rejection"].eq(rejection_value)
+    grp = base.assign(_k=flag).groupby("company")["_k"]
+    return grp.size(), grp.sum().astype(int)
+
+
 def company_league(tracking_student, min_n=config.MIN_N_RANKING):
     """Per company placement rate with a Wilson interval (Section 4.11).
 
@@ -334,17 +388,10 @@ def company_league(tracking_student, min_n=config.MIN_N_RANKING):
     Source columns: company, rejection, is_anomali.
     Note: the company key here is the tracking_student "company" name column.
     """
-    base = ts_bersih(tracking_student)
-    grp = base.groupby("company")
-    n = grp.size()
-    k = grp.apply(lambda g: int((g["rejection"] == schema.REJ_PLACEMENT).sum()))
+    n, k = _n_and_k_per_company(tracking_student, schema.REJ_PLACEMENT)
     out = pd.DataFrame({"n": n, "k": k})
-    lo, center, hi = [], [], []
-    for _, row in out.iterrows():
-        a, b, c = wilson(int(row["k"]), int(row["n"]))
-        lo.append(a)
-        center.append(b)
-        hi.append(c)
+
+    lo, center, hi = wilson_vectorised(out["k"], out["n"])
     out["wilson_lo"] = lo
     out["wilson_center"] = center
     out["wilson_hi"] = hi
@@ -358,9 +405,14 @@ def company_league_gate_count(tracking_student, min_n=config.MIN_N_RANKING):
     """Count of companies passing the n >= min_n gate (Section 4.11).
 
     Computed, not hardcoded. About 543 on full data.
+    Counts shipments per company directly instead of building the full league
+    table, since the Wilson columns are not read here. Callers that already
+    hold a company_league() result should count its lolos_gate column instead
+    of calling this.
     """
-    league = company_league(tracking_student, min_n)
-    return int(league["lolos_gate"].sum())
+    base = ts_bersih(tracking_student)
+    n = base.groupby("company").size()
+    return int((n >= min_n).sum())
 
 
 # ---------------------------------------------------------------------------
@@ -606,142 +658,6 @@ def segment_sector(tracking_student, tracking_company, company):
     )["industry_sector"]
     return rate_per_segment(tracking_student, sec, "industry_sector")
 
-
-def _semester_sort_key(label):
-    """Sort key for an academic semester label. Chronological order.
-
-    "Ganjil 2024/2025" sorts before "Genap 2024/2025". Ganjil starts August,
-    Genap starts February of the next calendar year, so Ganjil comes first.
-    """
-    if label is None:
-        return (9999, 9)
-    parts = label.split(" ")
-    term = parts[0]
-    start_year = int(parts[1].split("/")[0])
-    term_rank = 0 if term == "Ganjil" else 1
-    return (start_year, term_rank)
-
-
-# ---------------------------------------------------------------------------
-# 4.14 trend aggregation. Pure reshape, not a definition. The rate uses the
-# same clean base and rejection numerator as success_rate_per_shipment (4.2).
-# ---------------------------------------------------------------------------
-
-def trend_per_period(tracking_student, tracking_company, mode="bulan"):
-    """Volume and conversion rate per period (Section 4.14).
-
-    Process time base is send_date, joined from tracking_company via
-    id_tracking_company. Rate uses the anomaly free base and the
-    rejection == Placement numerator, identical to 4.2. No new definition,
-    only a groupby over time.
-
-    mode "bulan": monthly periods, label like "2024-09".
-    mode "semester": academic semester, label from academic_semester_label.
-
-    Returns a dataframe sorted in chronological order with columns:
-    periode, volume, placement, rate, partial.
-    The last period is marked partial = True (send data stops mid period).
-    Source columns: is_anomali, rejection, tracking_company.send_date.
-    """
-    base = ts_bersih(tracking_student)
-    merged = base.merge(
-        tracking_company[["id_tracking_company", "send_date"]],
-        on="id_tracking_company",
-        how="left",
-    )
-    merged = merged.dropna(subset=["send_date"]).copy()
-
-    if mode == "semester":
-        merged["periode"] = merged["send_date"].map(academic_semester_label)
-        order_keys = sorted(
-            merged["periode"].dropna().unique(), key=_semester_sort_key
-        )
-    else:
-        merged["periode"] = merged["send_date"].dt.to_period("M").astype(str)
-        order_keys = sorted(merged["periode"].dropna().unique())
-
-    merged["is_pl"] = merged["rejection"] == schema.REJ_PLACEMENT
-    grp = merged.groupby("periode")
-    volume = grp.size()
-    placement = grp["is_pl"].sum()
-    out = pd.DataFrame({"volume": volume, "placement": placement})
-    out = out.reindex(order_keys)
-    out["rate"] = out["placement"] / out["volume"]
-    out["partial"] = False
-    if len(out) > 0:
-        # The final period is incomplete: send_date stops mid period.
-        out.iloc[-1, out.columns.get_loc("partial")] = True
-    return out.reset_index().rename(columns={"index": "periode"})
-
-
-# ---------------------------------------------------------------------------
-# Segmentation aggregation (Section 6.4 part 3). Pure groupby, not a
-# definition. Rate uses the same clean base and rejection numerator as 4.2.
-# ---------------------------------------------------------------------------
-
-def rate_per_segment(tracking_student, segment_series, label_name="segmen"):
-    """Placement rate per segment value (Section 6.4 part 3).
-
-    segment_series is a per row label aligned to the clean base rows, for
-    example program_studi joined from status_student, or industry_sector
-    joined from company. Rate uses the anomaly free base and the
-    rejection == Placement numerator, identical to 4.2. Groupby only.
-
-    Returns a dataframe with columns: label_name, n, k, rate, sorted by
-    rate descending. n is shipments in that segment, k is placements.
-    Source columns: is_anomali, rejection, plus the caller supplied segment.
-    """
-    base = ts_bersih(tracking_student)
-    if len(segment_series) != len(base):
-        raise ValueError(
-            "segment_series length must match the clean base row count"
-        )
-    tmp = pd.DataFrame(
-        {
-            "seg": segment_series.values,
-            "is_pl": (base["rejection"] == schema.REJ_PLACEMENT).values,
-        }
-    )
-    grp = tmp.groupby("seg")
-    out = pd.DataFrame({"n": grp.size(), "k": grp["is_pl"].sum()})
-    out["rate"] = out["k"] / out["n"]
-    out = out.sort_values("rate", ascending=False).reset_index()
-    return out.rename(columns={"seg": label_name})
-
-
-def segment_program(tracking_student, status_student):
-    """Placement rate per student program (Section 6.4 part 3).
-
-    Joins the clean base NIM to status_student.program_studi, then groups.
-    Returns the rate_per_segment dataframe keyed "program_studi".
-    Source columns: NIM, status_student.program_studi, rejection, is_anomali.
-    """
-    base = ts_bersih(tracking_student)
-    prog = base.merge(
-        status_student[["NIM", "program_studi"]], on="NIM", how="left"
-    )["program_studi"]
-    return rate_per_segment(tracking_student, prog, "program_studi")
-
-
-def segment_sector(tracking_student, tracking_company, company):
-    """Placement rate per company industry sector (Section 6.4 part 3).
-
-    Joins the clean base to tracking_company for id_company, then to company
-    for industry_sector, then groups.
-    Returns the rate_per_segment dataframe keyed "industry_sector".
-    Source columns: id_tracking_company, id_company, company.industry_sector,
-    rejection, is_anomali.
-    """
-    base = ts_bersih(tracking_student)
-    sec = base.merge(
-        tracking_company[["id_tracking_company", "id_company"]],
-        on="id_tracking_company",
-        how="left",
-    ).merge(
-        company[["id_company", "industry_sector"]], on="id_company", how="left"
-    )["industry_sector"]
-    return rate_per_segment(tracking_student, sec, "industry_sector")
-
 # ---------------------------------------------------------------------------
 # 4.15 Ghosting rate per company. New metric for Monitoring tab Perusahaan.
 # Mirrors company_league() (Section 4.11) but numerator is ghosting, not
@@ -759,10 +675,7 @@ def ghosting_rate_per_company(tracking_student, min_n=config.MIN_N_RANKING):
     company_league.
     Source columns: company, rejection, is_anomali.
     """
-    base = ts_bersih(tracking_student)
-    grp = base.groupby("company")
-    n = grp.size()
-    k = grp.apply(lambda g: int((g["rejection"] == schema.REJ_GHOSTING).sum()))
+    n, k = _n_and_k_per_company(tracking_student, schema.REJ_GHOSTING)
     out = pd.DataFrame({"n": n, "k": k})
     out["rate"] = out["k"] / out["n"]
     out["lolos_gate"] = out["n"] >= min_n

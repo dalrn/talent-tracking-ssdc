@@ -21,6 +21,7 @@ import core  # noqa: F401
 import config
 import schema
 from core import loader, clean, metrics
+from core import cached as C
 import components.html as H
 WARNA = config.WARNA
 
@@ -146,6 +147,12 @@ if periode_filter:
     # parent tracking_company passed the period filter.
     valid_tc_ids = set(tc_filtered["id_tracking_company"].dropna())
     ts_filtered = ts_filtered[ts_filtered["id_tracking_company"].isin(valid_tc_ids)]
+
+# Cache key for the metric wrappers in core/cached.py. This page slices by two
+# filters, so both go into the key: the sidebar date range and the page-level
+# jenis_penempatan. The Mahasiswa/Perusahaan toggle and the sort radios rerun
+# the script without changing the slice, so they hit cache.
+FKEY = C.filter_key(periode_filter, jenis_penempatan_filter)
 
 
 # Segmented control for the main view switch (Mahasiswa | Perusahaan). Styled
@@ -278,16 +285,14 @@ if view == "Mahasiswa":
         _section_title("Ringkasan performa perusahaan")
         st.caption("Analisis penuh dix halaman Analitik.")
 
-        league = metrics.company_league(ts_filtered, min_n=config.MIN_N_RANKING)
-        gate_count = metrics.company_league_gate_count(ts_filtered, min_n=config.MIN_N_RANKING)
+        league = C.company_league(ts_filtered, FKEY, min_n=config.MIN_N_RANKING)
+        gate_count = C.company_league_gate_count(ts_filtered, FKEY, min_n=config.MIN_N_RANKING)
 
         # Descriptive lookups for the row subtitle. Not metrics: no rate or count
         # is computed here, only the most common jenis_penempatan per company
         # (a company can span several shipments with different values) and the
         # industry_sector joined from the raw company table by name.
-        jenis_lookup = ts_filtered.groupby("company")["jenis_penempatan"].agg(
-            lambda s: s.mode().iat[0] if not s.mode().empty else ""
-        )
+        jenis_lookup = C.jenis_penempatan_lookup(ts_filtered, FKEY)
         sektor_lookup = data.company.set_index("company_name")["industry_sector"]
 
         def _subtitle(company_name):
@@ -460,9 +465,7 @@ if view == "Perusahaan":
         _panel_marker()
         _section_title("Klasifikasi tipe ghosting")
 
-        klas = metrics.klasifikasi_ghosting(
-            ts_filtered, ghosting_mask=metrics.ghosting_reporting_mask(ts_filtered)
-        )
+        klas = C.klasifikasi_ghosting_reporting(ts_filtered, FKEY)
         tipe_counts = klas["tipe_ghosting"].value_counts()
 
         k1, k2, k3 = st.columns(3)
@@ -505,8 +508,8 @@ if view == "Perusahaan":
         _section_title("Tingkat ghosting tertinggi (minimal "
                        + str(config.MIN_N_RANKING) + " pengiriman)")
 
-        ghost_all = metrics.ghosting_rate_per_company(ts_filtered, min_n=config.MIN_N_RANKING)
-        ghost_murni = metrics.ghosting_rate_per_company_murni(ts_filtered, min_n=config.MIN_N_RANKING)
+        ghost_all = C.ghosting_rate_per_company(ts_filtered, FKEY, min_n=config.MIN_N_RANKING)
+        ghost_murni = C.ghosting_rate_per_company_murni(ts_filtered, FKEY, min_n=config.MIN_N_RANKING)
 
         def _ghost_table(df):
             gated = df[df["lolos_gate"]].sort_values("rate", ascending=False).head(5)
@@ -530,8 +533,8 @@ if view == "Perusahaan":
             st.markdown("**Murni perusahaan saja**")
             st.markdown(_ghost_table(ghost_murni), unsafe_allow_html=True)
 
-        worst_company, worst_k = metrics.max_ghosting_case_company(
-            ts_filtered, min_n=config.MIN_N_RANKING
+        worst_company, worst_k = C.max_ghosting_case_company(
+            ts_filtered, FKEY, min_n=config.MIN_N_RANKING
         )
         if worst_company is not None:
             st.markdown(
@@ -569,8 +572,8 @@ if view == "Perusahaan":
             "berguna dibaca adalah urutan relatifnya, bukan angka harinya."
         )
 
-        response_time = metrics.response_time_per_company(
-            ts_filtered, tc_filtered, ANCHOR, min_n=config.MIN_N_RANKING
+        response_time = C.response_time_per_company(
+            ts_filtered, tc_filtered, ANCHOR, FKEY, min_n=config.MIN_N_RANKING
         )
         response_full = response_time[response_time["lolos_gate"]].sort_values(
             "avg_response_days", ascending=False

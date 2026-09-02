@@ -23,6 +23,7 @@ import core  # noqa: F401
 import config
 import schema
 from core import loader, clean, metrics
+from core import cached as C
 from components import html as H
 
 WARNA = config.WARNA
@@ -67,6 +68,11 @@ if periode_filter:
     valid_tc_ids = set(tc["id_tracking_company"].dropna())
     ts = ts[ts["id_tracking_company"].isin(valid_tc_ids)]
 
+# Cache key for the metric wrappers in core/cached.py. Every heavy metric on
+# this page depends only on the date range, so one key covers them all: a
+# segment button click or a search keystroke reruns the script but hits cache.
+FKEY = C.filter_key(periode_filter)
+
 st.markdown(
     H.page_header(
         "Beranda",
@@ -81,7 +87,7 @@ st.markdown(
 # PART 1. Compact KPIs. Operational first: what needs action, plus context.
 # ===========================================================================
 
-seg_counts = metrics.beranda_segment_counts(ts, ss)
+seg_counts = C.beranda_segment_counts(ts, ss, FKEY)
 n_ghosting = seg_counts[schema.SEG_GHOSTING]
 n_draft = len(metrics.draft_requests(tc))
 n_placed_student = metrics.success_numerator_per_student(ts)
@@ -213,7 +219,7 @@ def _build_queue_display(active_seg):
     selected row maps back to a student.
     """
     if active_seg == schema.SEG_ELIGIBLE:
-        elig = metrics.eligible_belum_dikirim(ss, ts).copy()
+        elig = C.eligible_belum_dikirim(ss, ts, FKEY).copy()
         elig = elig.merge(sa[["NIM", "hp"]], on="NIM", how="left")
         elig = elig.reset_index(drop=True)
         disp = elig[[
@@ -229,7 +235,7 @@ def _build_queue_display(active_seg):
         })
         return disp, view, True
 
-    q = metrics.beranda_queue(ts, data.ANCHOR)
+    q = C.beranda_queue(ts, data.ANCHOR, FKEY)
     q = q[q["segmen"] == active_seg].copy()
     q = q.merge(sa[["NIM", "hp"]], on="NIM", how="left").reset_index(drop=True)
     q["Perusahaan & posisi"] = q["company"] + " - " + q["position"]

@@ -71,40 +71,53 @@ def build_list_nim_bersih(tracking_company, tracking_student):
     NIM in tracking_student (same id_tracking_company) missing from the list,
     and append it. Clean rows keep list_nim unchanged.
     Source columns: tracking_company.list_nim, tracking_student.NIM.
+
+    Only the 48 broken rows are ever visited. Detection is a vectorised
+    str.match over the whole column, and the child NIM lookup is built only
+    for the ids of those broken rows, so the 11.952 clean rows cost nothing
+    beyond the regex scan. The previous row-by-row iterrows() pass over all
+    12.000 rows dominated the whole cleaning step.
     """
     df = tracking_company.copy()
 
-    # Map each id_tracking_company to the set of its child NIM values.
+    # Vectorised detection. na=False keeps missing list_nim out of the mask.
+    broken = df["list_nim"].str.match(_BROKEN_PATTERN, na=False)
+    df["is_list_nim_broken"] = broken.to_numpy()
+
+    # Clean rows pass through untouched; only broken ones are rebuilt below.
+    df["list_nim_bersih"] = df["list_nim"]
+
+    broken_idx = df.index[broken]
+    if len(broken_idx) == 0:
+        return df
+
+    # Child NIM sets, built only for the ids that actually need them.
+    broken_ids = set(df.loc[broken_idx, "id_tracking_company"].dropna())
+    kids_src = tracking_student[
+        tracking_student["id_tracking_company"].isin(broken_ids)
+    ]
     kids = (
-        tracking_student.groupby("id_tracking_company")["NIM"]
+        kids_src.groupby("id_tracking_company")["NIM"]
         .apply(lambda s: set(s.dropna()))
         .to_dict()
     )
 
-    broken_flags = []
-    bersih_values = []
-    for _, row in df.iterrows():
-        raw = row["list_nim"]
-        if _is_broken_list_nim(raw):
-            broken_flags.append(True)
-            # Listed NIM values, minus the trailing lone "2".
-            parts = [p.strip() for p in str(raw).split(",")]
-            listed = set(parts[:-1])
-            child_set = kids.get(row["id_tracking_company"], set())
-            missing = child_set - listed
-            # The document proves exactly one missing NIM per broken row.
-            if len(missing) == 1:
-                fixed = sorted(listed | missing)
-                bersih_values.append(",".join(fixed))
-            else:
-                # Should never happen on this data. Keep listed part, no guess.
-                bersih_values.append(",".join(sorted(listed)))
+    fixed_values = []
+    for idx in broken_idx:
+        raw = df.at[idx, "list_nim"]
+        # Listed NIM values, minus the trailing lone "2".
+        parts = [p.strip() for p in str(raw).split(",")]
+        listed = set(parts[:-1])
+        child_set = kids.get(df.at[idx, "id_tracking_company"], set())
+        missing = child_set - listed
+        # The document proves exactly one missing NIM per broken row.
+        if len(missing) == 1:
+            fixed_values.append(",".join(sorted(listed | missing)))
         else:
-            broken_flags.append(False)
-            bersih_values.append(raw)
+            # Should never happen on this data. Keep listed part, no guess.
+            fixed_values.append(",".join(sorted(listed)))
 
-    df["is_list_nim_broken"] = broken_flags
-    df["list_nim_bersih"] = bersih_values
+    df.loc[broken_idx, "list_nim_bersih"] = fixed_values
     return df
 
 
@@ -178,11 +191,13 @@ def parse_multi_value_fields(talent_request, tracking_company, status_student):
 # Public entry point. Runs every rule in order and returns CleanData.
 # ---------------------------------------------------------------------------
 
-def clean_data(raw):
+def _clean_impl(raw):
     """Apply all cleaning rules to a RawData object. Return CleanData.
 
     Order: flag anomali, reconstruct list_nim, fix phones, parse multi value.
     ANCHOR and SYNC_REF pass through unchanged.
+
+    This is the plain function. clean_data wraps it in the Streamlit cache.
     """
     tracking_student = flag_anomali(raw.tracking_student)
 
@@ -206,3 +221,31 @@ def clean_data(raw):
         ANCHOR=raw.ANCHOR,
         SYNC_REF=raw.SYNC_REF,
     )
+
+
+def clean_data(raw):
+    """Cached cleaning for Streamlit. Falls back to the plain call off app.
+
+    Streamlit reruns a whole page script on every widget interaction, so an
+    uncached clean_data() re-ran the full cleaning pass on every click. The
+    result is a read-only CleanData holding DataFrames shared by all four
+    pages, so cache_resource is the right cache: no per-call hashing of the
+    RawData argument, and one shared instance instead of a copy per caller.
+
+    Keyed on the identity of the RawData object rather than its contents.
+    loader.load_data() is itself cached and hands back the same RawData for
+    the same data_dir, so that identity is stable for the life of the app and
+    changes only when the loader cache is cleared and the CSVs are re-read.
+    """
+    try:
+        import streamlit as st
+    except Exception:
+        return _clean_impl(raw)
+
+    @st.cache_resource(show_spinner=False)
+    def _cached(_raw, cache_key):
+        # _raw is underscore-prefixed so Streamlit skips hashing it; cache_key
+        # carries the identity that actually decides cache validity.
+        return _clean_impl(_raw)
+
+    return _cached(raw, id(raw))
