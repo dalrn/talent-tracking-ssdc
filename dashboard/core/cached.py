@@ -26,6 +26,20 @@ import config
 from core import metrics
 
 
+# Cache bounds. Streamlit caches are unbounded by default: every distinct
+# filter_key adds an entry that is never evicted, so a session that drags the
+# date picker around grows the process until the host kills it (Streamlit
+# Community Cloud allows about 1 GB). Each entry here holds a per-company or
+# per-row dataframe derived from the full tables, so a handful of stale ranges
+# is real memory.
+#
+# max_entries keeps the most recent few filter ranges hot, which is what
+# actually gets revisited, and evicts the rest least-recently-used. ttl frees
+# them again once a session has moved on.
+CACHE_MAX_ENTRIES = 8
+CACHE_TTL = 1800  # seconds (30 minutes)
+
+
 def filter_key(periode_filter=None, jenis_penempatan=None, extra=None):
     """Build the hashable cache key describing the current filter slice.
 
@@ -48,32 +62,32 @@ def filter_key(periode_filter=None, jenis_penempatan=None, extra=None):
 # and still the most worth caching because several pages ask for them.
 # ---------------------------------------------------------------------------
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def company_league(_ts, filter_key, min_n=config.MIN_N_RANKING):
     return metrics.company_league(_ts, min_n=min_n)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def company_league_gate_count(_ts, filter_key, min_n=config.MIN_N_RANKING):
     return metrics.company_league_gate_count(_ts, min_n=min_n)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def ghosting_rate_per_company(_ts, filter_key, min_n=config.MIN_N_RANKING):
     return metrics.ghosting_rate_per_company(_ts, min_n=min_n)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def ghosting_rate_per_company_murni(_ts, filter_key, min_n=config.MIN_N_RANKING):
     return metrics.ghosting_rate_per_company_murni(_ts, min_n=min_n)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def max_ghosting_case_company(_ts, filter_key, min_n=config.MIN_N_RANKING):
     return metrics.max_ghosting_case_company(_ts, min_n=min_n)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def response_time_per_company(_ts, _tc, anchor, filter_key,
                               min_n=config.MIN_N_RANKING):
     return metrics.response_time_per_company(_ts, _tc, anchor, min_n=min_n)
@@ -84,7 +98,7 @@ def response_time_per_company(_ts, _tc, anchor, filter_key,
 # the murni variant above.
 # ---------------------------------------------------------------------------
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def klasifikasi_ghosting_reporting(_ts, filter_key):
     return metrics.klasifikasi_ghosting(
         _ts, ghosting_mask=metrics.ghosting_reporting_mask(_ts)
@@ -96,17 +110,17 @@ def klasifikasi_ghosting_reporting(_ts, filter_key):
 # every keystroke in the search box before this.
 # ---------------------------------------------------------------------------
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def beranda_queue(_ts, anchor, filter_key):
     return metrics.beranda_queue(_ts, anchor)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def beranda_segment_counts(_ts, _ss, filter_key):
     return metrics.beranda_segment_counts(_ts, _ss)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def eligible_belum_dikirim(_ss, _ts, filter_key):
     return metrics.eligible_belum_dikirim(_ss, _ts)
 
@@ -115,32 +129,32 @@ def eligible_belum_dikirim(_ss, _ts, filter_key):
 # Analitik trends and segments.
 # ---------------------------------------------------------------------------
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def trend_per_period(_ts, _tc, mode, filter_key):
     return metrics.trend_per_period(_ts, _tc, mode=mode)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def segment_program(_ts, _ss, filter_key):
     return metrics.segment_program(_ts, _ss)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def segment_sector(_ts, _tc, _co, filter_key):
     return metrics.segment_sector(_ts, _tc, _co)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def drift_student_all_vs_status(_sa, _ss, filter_key):
     return metrics.drift_student_all_vs_status(_sa, _ss)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def placed_diluar_cakupan(_ss, _ts, filter_key):
     return metrics.placed_diluar_cakupan(_ss, _ts)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def placed_belum_update_status(_ss, _ts, filter_key):
     return metrics.placed_belum_update_status(_ss, _ts)
 
@@ -150,7 +164,7 @@ def placed_belum_update_status(_ss, _ts, filter_key):
 # most common jenis_penempatan per company, used only as a row subtitle.
 # ---------------------------------------------------------------------------
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=CACHE_MAX_ENTRIES, ttl=CACHE_TTL)
 def jenis_penempatan_lookup(_ts, filter_key):
     """Most common jenis_penempatan per company, as a Series indexed by company.
 

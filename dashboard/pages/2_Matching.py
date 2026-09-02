@@ -35,7 +35,8 @@ if periode_filter:
     tc = tc[(tc["request_date"] >= start) & (tc["request_date"] <= end)]
 
 
-@st.cache_resource(show_spinner="Memproses pencarian...")
+@st.cache_resource(show_spinner="Memproses pencarian...", max_entries=1,
+                   ttl=1800)
 def _get_matching_engine():
     """Build and precompute MatchingEngine once per session.
 
@@ -45,6 +46,14 @@ def _get_matching_engine():
     same already-cleaned dataframes every other section of this page uses,
     not a second raw CSV read.
     """
+    # Bounded on purpose. The precompute builds about fourteen per-student
+    # dicts over 25.000 students and costs roughly 140 MB resident, which is
+    # the single largest allocation in the app. cache_resource never evicts by
+    # default, so without max_entries/ttl that 140 MB stayed for the life of
+    # the process even after the user left the Matching page, and on Streamlit
+    # Community Cloud (about 1 GB) that is what pushes the app over its limit.
+    # max_entries=1 keeps exactly one engine; ttl releases it once idle.
+
     # clean_data() is itself cached now, so this returns the same CleanData
     # instance the page body already holds; no second read or clean happens.
     cleaned = clean.clean_data(loader.load_data())

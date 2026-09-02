@@ -1,5 +1,8 @@
-streamlit
-pandas
-numpy
-plotly
-streamlit_searchbox
+# Versi dipin ke yang benar-benar diuji di mesin lokal, supaya deploy di
+# Streamlit Community Cloud reprodusibel dan tidak menarik rilis baru yang
+# perilaku memorinya belum teruji.
+streamlit==1.60.0
+pandas==3.0.5
+numpy==2.5.1
+plotly==6.9.0
+streamlit-searchbox==0.1.24
