@@ -1,6 +1,8 @@
 # pages/2_Matching.py
 # Owner: Mutia. Purpose: Matching (BT-01, BT-03, BT-06). See spec Section 6.2.
 
+import os
+
 import pandas as pd
 import streamlit as st
 from streamlit_searchbox import st_searchbox
@@ -35,10 +37,29 @@ if periode_filter:
     tc = tc[(tc["request_date"] >= start) & (tc["request_date"] <= end)]
 
 
+def _engine_source_version():
+    """Fingerprint of the engine source, used as a cache key.
+
+    st.cache_resource does not notice that core/matching.py changed, so a
+    running app kept serving an engine built from older code: after the
+    cross-request lookup gained a "tahap" field, the cached engine still
+    returned entries without it and the column rendered empty everywhere.
+    Keying on the file's modification time rebuilds the engine whenever the
+    engine code changes, and costs one stat() call per rerun.
+    """
+    try:
+        return os.path.getmtime(matching.__file__)
+    except OSError:
+        return 0.0
+
+
 @st.cache_resource(show_spinner="Memproses pencarian...", max_entries=1,
                    ttl=1800)
-def _get_matching_engine():
+def _get_matching_engine(source_version):
     """Build and precompute MatchingEngine once per session.
+
+    source_version is not read inside; it exists so a change to the engine
+    source invalidates this cache (see _engine_source_version).
 
     Cached as a resource (not cache_data): precompute() builds the tool
     lexicon and historical knowledge dictionary from the full student and
@@ -324,7 +345,7 @@ with c2:
             st.session_state["active_request_id"] = tid
             st.session_state["selected_candidate_ids"] = []
 
-        engine = _get_matching_engine()
+        engine = _get_matching_engine(_engine_source_version())
 
         bw1, bw2, bw3, bw4, bw5, bw6 = st.columns(6)
         with bw1:
@@ -531,10 +552,6 @@ with c2:
                     f"({len(checked_with_other)} kandidat)",
                     expanded=True,
                 ):
-                    st.caption(
-                        "Tanggal adalah saat kandidat dikirim ke perusahaan "
-                        "tersebut. Pertimbangkan sebelum mengirim ulang."
-                    )
                     for nim_key, nama in nama_lookup.items():
                         other_reqs = engine.other_requests(nim_key, exclude_tid=tid)
                         if not other_reqs:
