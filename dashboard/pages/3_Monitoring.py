@@ -447,7 +447,7 @@ if view == "Perusahaan":
             )
         with k2:
             st.markdown(
-                H.kpi_card("Mahasiswa mundur",
+                H.kpi_card("Mahasiswa tidak merespons",
                            H._fmt_id(int(tipe_counts.get("mahasiswa_mangkir", 0))),
                            accent=WARNA["ink"]),
                 unsafe_allow_html=True,
