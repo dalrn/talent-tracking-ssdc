@@ -459,14 +459,6 @@ if view == "Perusahaan":
                            accent=WARNA["ink"]),
                 unsafe_allow_html=True,
             )
-        st.markdown(
-            H.callout(
-                "Disebut 'kemungkinan' karena pembagian ini disimpulkan dari "
-                "urutan tanggal, bukan keterangan langsung di data.",
-                kind="muted",
-            ),
-            unsafe_allow_html=True,
-        )
 
     # =======================================================================
     # 3. Rate ghosting tertinggi. Dua versi berdampingan.
@@ -504,16 +496,6 @@ if view == "Perusahaan":
         worst_company, worst_k = C.max_ghosting_case_company(
             ts_filtered, FKEY, min_n=config.MIN_N_RANKING
         )
-        if worst_company is not None:
-            st.markdown(
-                H.callout(
-                    "Perusahaan dengan kasus terbanyak pun hanya "
-                    + H._fmt_id(worst_k) + " kasus (" + str(worst_company)
-                    + "). Masalahnya tersebar, bukan segelintir perusahaan.",
-                    kind="watch", title="Tersebar, bukan segelintir pelaku",
-                ),
-                unsafe_allow_html=True,
-            )
 
         # TODO(Afrizal): confirm whether the two leaderboards should be side by
         # side (current layout) or toggled via a single selectbox/radio, per
@@ -616,8 +598,8 @@ if view == "Perusahaan":
             )
             st.caption(
                 "Usia dihitung sampai " + ANCHOR_TXT + ", tanggal data "
-                "dibekukan. Menampilkan 10 tertua dari "
-                + H._fmt_id(len(draft_sorted)) + " permintaan yang belum digarap."
+                "dibekukan. Menampilkan 10 permintaan tertua dari "
+                + H._fmt_id(len(draft_sorted)) + " permintaan yang belum ditindaklanjuti."
             )
 
 
