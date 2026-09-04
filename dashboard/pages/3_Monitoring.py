@@ -183,7 +183,6 @@ if view == "Mahasiswa":
     with st.container(border=True):
         _panel_marker()
         _section_title("Alur Seleksi")
-        st.caption("Klik satu tahap untuk melihat daftar mahasiswanya.")
 
         active_counts = metrics.funnel_active_counts(ts_filtered)
         drop_counts = metrics.funnel_drop_counts(ts_filtered)
@@ -217,42 +216,33 @@ if view == "Mahasiswa":
             schema.STAGE_FINAL: "gugur wawancara akhir",
         }
 
+        # Baris funnel memakai lebar penuh. Sebelumnya tiap baris dibagi dua
+        # kolom untuk menyisakan tempat bagi tombol per tahap; tombol itu
+        # dihapus karena tidak dipakai.
         for stage in stages:
-            col_bar, col_btn = st.columns([6, 1])
-            with col_bar:
+            st.markdown(
+                H.funnel_bar(
+                    label=STAGE_JUDUL.get(stage, stage),
+                    sublabel=STAGE_SUBLABELS.get(stage, ""),
+                    aktif=active_counts[stage],
+                    gugur=drop_counts.get(stage, 0),
+                    gugur_label=STAGE_GUGUR_LABELS.get(stage, ""),
+                    accent=WARNA["bar"],
+                    is_placement=(stage == schema.STAGE_PLACEMENT),
+                    max_val=max_val,
+                ),
+                unsafe_allow_html=True,
+            )
+            # CDC Briefing has no rejection category, so no drop bar. Say so
+            # explicitly, otherwise a reader concludes nobody fails here.
+            if stage == schema.STAGE_BRIEFING:
                 st.markdown(
-                    H.funnel_bar(
-                        label=STAGE_JUDUL.get(stage, stage),
-                        sublabel=STAGE_SUBLABELS.get(stage, ""),
-                        aktif=active_counts[stage],
-                        gugur=drop_counts.get(stage, 0),
-                        gugur_label=STAGE_GUGUR_LABELS.get(stage, ""),
-                        accent=WARNA["bar"],
-                        is_placement=(stage == schema.STAGE_PLACEMENT),
-                        max_val=max_val,
-                    ),
+                    "<div style='font-size:0.72rem;color:" + WARNA["muted"]
+                    + ";margin:-4px 0 4px 226px;'>"
+                    "Tidak ada yang gugur di tahap ini."
+                    "</div>",
                     unsafe_allow_html=True,
                 )
-                # CDC Briefing has no rejection category, so no drop bar. Say so
-                # explicitly, otherwise a reader concludes nobody fails here.
-                if stage == schema.STAGE_BRIEFING:
-                    st.markdown(
-                        "<div style='font-size:0.72rem;color:" + WARNA["muted"]
-                        + ";margin:-4px 0 4px 226px;'>"
-                        "Tidak ada yang gugur di tahap ini."
-                        "</div>",
-                        unsafe_allow_html=True,
-                    )
-            with col_btn:
-                # Native button required to catch a click (Plotly funnel click-event
-                # is not reliably capturable), per spec point 2c.
-                if st.button("Lihat daftar", key="buka_" + stage, use_container_width=True):
-                    st.session_state["beranda_segment"] = {
-                        "stage": stage,
-                        "source_page": "Monitoring",
-                    }
-                    st.switch_page("pages/1_Beranda.py")
-
         st.markdown(
             '<div style="display:flex;gap:24px;align-items:center;'
             'margin-top:6px;font-size:0.8rem;color:' + WARNA["ink2"] + ';">'

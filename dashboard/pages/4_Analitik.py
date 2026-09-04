@@ -106,11 +106,9 @@ with head_r:
             value=config.SYNC_SLIDER_DEFAULT, key="sync_slider",
         )
         st.caption(
-            "Jumlah yang besar di sini wajar. Data dibekukan pada "
-            + H.tanggal_id(data.ANCHOR.date()) + ", sedangkan pembaruan status "
-            "terakhir " + H.tanggal_id(data.SYNC_REF.date()) + ", sekitar 3,5 "
-            "bulan sebelumnya. Jadi pada ambang " + str(x_days) + " hari, angka "
-            "besar bukan tanda masalah data."
+            "Angka besar wajar: pembaruan status terakhir "
+            + H.tanggal_id(data.SYNC_REF.date()) + ", sekitar 3,5 bulan "
+            "sebelum data dibekukan."
         )
 
 rate_shipment = metrics.success_rate_per_shipment(ts)
@@ -186,10 +184,13 @@ _section_title("Tren dari waktu ke waktu")
 # Default to Per semester: 5 bars read faster than 25 monthly bars. Bulanan
 # stays available for a closer look.
 mode_label = st.radio(
+    # Label wajib diisi, jadi tetap ditulis lalu disembunyikan; menghapusnya
+    # membuat opsi terbaca sebagai label dan st.radio kehilangan argumen.
     "Periode",
     ["Per semester", "Bulanan"],
     horizontal=True,
     key="trend_mode",
+    label_visibility="collapsed",
 )
 mode = "bulan" if mode_label == "Bulanan" else "semester"
 
@@ -258,8 +259,7 @@ with st.container(border=True):
     st.plotly_chart(fig, use_container_width=True, theme=None)
     st.markdown(
         H.callout(
-            "Periode terakhir bertanda garis miring belum lengkap. Pengiriman "
-            "berhenti di pertengahan periode, jadi jumlahnya belum penuh.",
+            "Periode dengan data belum lengkap ditandai arsiran.",
             kind="watch",
         ),
         unsafe_allow_html=True,
@@ -368,10 +368,10 @@ prog_spread = (seg_prog["rate"].max() - seg_prog["rate"].min()) * 100
 sect_spread = (seg_sect["rate"].max() - seg_sect["rate"].min()) * 100
 st.markdown(
     H.callout(
-        "Kinerja konsisten antar segmen. Selisih antar program hanya "
+        "Kinerja konsisten antarsegmen. Selisih antarprogram hanya "
         "sekitar " + str(round(prog_spread, 1)).replace(".", ",")
-        + " poin persen, antar sektor sekitar "
-        + str(round(sect_spread, 1)).replace(".", ",") + " poin persen. Semua "
+        + " persen, antarsektor sekitar "
+        + str(round(sect_spread, 1)).replace(".", ",") + " persen. Semua "
         "segmen dekat rata-rata.",
         kind="muted",
     ),
@@ -510,15 +510,3 @@ with e2:
 n_rej_pl = int(metrics.is_placement_success(ts).sum())
 n_stage_pl = int(metrics.is_stage_placement(ts).sum())
 selisih = n_rej_pl - n_stage_pl
-
-st.markdown("---")
-st.markdown(
-    H.callout(
-        "Penempatan dihitung " + H._fmt_id(n_rej_pl) + ", mencakup semua yang "
-        "pernah berhasil ditempatkan. Yang masih aktif di tahap penempatan ada "
-        + H._fmt_id(n_stage_pl) + "; selisih " + H._fmt_id(selisih) + " sudah "
-        "selesai dan tetap dihitung berhasil.",
-        kind="muted", title="Catatan definisi",
-    ),
-    unsafe_allow_html=True,
-)
