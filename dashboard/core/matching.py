@@ -1103,6 +1103,10 @@ class MatchingEngine:
         ts_cols = [ts_nim, ts_tc, "rejection"]
         if "last_update" in ts.columns:
             ts_cols.append("last_update")
+        # Tahap funnel ikut dibawa supaya dashboard bisa menyebutkan posisi
+        # kandidat pada tiap permintaan lain, bukan hanya bahwa ia ada di sana.
+        if "progress_student" in ts.columns:
+            ts_cols.append("progress_student")
         tc_cols = [tc_id, tc_treq]
         tc_cols += [c for c in ("send_date", "posisi", "nama_perusahaan") if c in tc.columns]
 
@@ -1143,11 +1147,13 @@ class MatchingEngine:
                 "posisi": rec.get("posisi", ""),
                 "perusahaan": rec.get("nama_perusahaan", ""),
                 "tanggal": rec.get("_tanggal"),
+                # Tahap terakhir yang tercatat pada permintaan tersebut.
+                "tahap": rec.get("progress_student", ""),
             })
         return dict(lookup)
 
     def other_requests(self, nim: str, exclude_tid: Optional[str] = None) -> list[dict]:
-        """Daftar request lain (id_talent_req, posisi, perusahaan, tanggal)
+        """Daftar request lain (id_talent_req, posisi, perusahaan, tanggal, tahap)
         di mana NIM ini masih aktif atau sudah berhasil, terurut menaik
         berdasarkan tanggal. exclude_tid biasanya request yang sedang
         dilihat di dashboard."""

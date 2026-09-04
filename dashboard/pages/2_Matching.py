@@ -273,7 +273,7 @@ with c2:
             unsafe_allow_html=True,
         )
         st.caption(
-            f"{tr_req['renumerasi']} · Durasi penempatan: {tr_req['durasi']}"
+            f"{tr_req['renumerasi']} | Durasi penempatan: {tr_req['durasi']}"
         )
 
         # -- Baris atribut permintaan: tiap nilai diberi label kecil --
@@ -311,7 +311,6 @@ with c2:
         w1, w2 = st.columns([3, 1])
         with w1:
             st.markdown("**Bobot penilaian**")
-            st.caption("Syarat wajib (mahasiswa tersedia dan semester minimum) bukan bobot. Kandidat yang tidak memenuhi syarat tidak ditampilkan.")
         with w2:
             if st.button(
                 "Kembalikan ke bobot awal",
@@ -375,6 +374,7 @@ with c2:
 
         # -- Tabel kandidat --
         st.markdown("**Kandidat yang sesuai**")
+        st.caption("Kandidat yang tidak memenuhi semester minimum tidak ditampilkan.")
 
         if rec_result.empty:
             st.markdown(
@@ -454,6 +454,15 @@ with c2:
                 .eq(schema.CV_ADA)
                 .map({True: "Ada", False: "Tidak"})
             )
+            # Status portofolio, dibaca sama seperti kolom CV. Kolom ini ada
+            # supaya filter portofolio di atas tabel punya umpan balik yang
+            # terlihat: tanpa kolom ini, menyalakan filter hanya memangkas
+            # jumlah baris tanpa pembaca bisa memastikan alasannya.
+            display["Portofolio"] = (
+                show_df["Punya Portofolio"]
+                .astype(bool)
+                .map({True: "Ada", False: "Tidak"})
+            )
 
             display.insert(
                 0,
@@ -487,6 +496,10 @@ with c2:
                         "CV", width="small",
                         help="Apakah kandidat sudah melampirkan CV.",
                     ),
+                    "Portofolio": st.column_config.TextColumn(
+                        "Portofolio", width="small",
+                        help="Apakah kandidat sudah melampirkan portofolio.",
+                    ),
                 },
                 key=f"candidate_editor_{tid}_{top_n_label}",
             )
@@ -498,35 +511,47 @@ with c2:
             all_selected_ids = (selected_ids - visible_ids) | visible_selected_ids
             st.session_state["selected_candidate_ids"] = list(all_selected_ids)
 
-            # -- Drill-down request lain, di bawah tabel agar tidak menutup kandidat --
-            candidates_with_other = filtered_detail[filtered_detail["Jumlah Request Lain"] > 0]
-            if not candidates_with_other.empty:
+            # -- Permintaan lain yang diikuti kandidat yang DICENTANG --
+            # Sebelumnya bagian ini punya dropdown sendiri yang mengabaikan
+            # centang di tabel, sehingga pengguna harus memilih nama untuk
+            # kedua kalinya. Sekarang isinya mengikuti kandidat yang sudah
+            # dicentang: mencentang satu nama langsung memunculkan riwayatnya.
+            checked_with_other = filtered_detail[
+                filtered_detail[id_col].astype(str).isin(all_selected_ids)
+                & (filtered_detail["Jumlah Request Lain"] > 0)
+            ]
+
+            if all_selected_ids and not checked_with_other.empty:
+                nama_lookup = dict(zip(
+                    checked_with_other[id_col].astype(str),
+                    checked_with_other["Nama Mahasiswa"],
+                ))
                 with st.expander(
-                    f"Lihat permintaan lain yang diikuti kandidat ({len(candidates_with_other)} kandidat)"
+                    "Permintaan lain yang sedang diikuti kandidat tercentang "
+                    f"({len(checked_with_other)} kandidat)",
+                    expanded=True,
                 ):
-                    other_id_col = matching.candidate_id_column(candidates_with_other)
-                    name_lookup = dict(zip(
-                        candidates_with_other[other_id_col].astype(str),
-                        candidates_with_other["Nama Mahasiswa"],
-                    ))
-                    nim_options = list(name_lookup.keys())
-                    picked_nim = st.selectbox(
-                        "Pilih kandidat",
-                        nim_options,
-                        format_func=lambda nim: f"{nim} - {name_lookup.get(nim, '')}",
-                        key=f"other_request_pick_{tid}",
+                    st.caption(
+                        "Tanggal adalah saat kandidat dikirim ke perusahaan "
+                        "tersebut. Pertimbangkan sebelum mengirim ulang."
                     )
-                    other_reqs = engine.other_requests(picked_nim, exclude_tid=tid)
-                    if not other_reqs:
-                        st.caption("Tidak ada permintaan lain untuk kandidat ini.")
-                    else:
+                    for nim_key, nama in nama_lookup.items():
+                        other_reqs = engine.other_requests(nim_key, exclude_tid=tid)
+                        if not other_reqs:
+                            continue
+                        st.markdown(f"**{nama}** ({nim_key})")
                         st.markdown(
                             H.read_only_table(
-                                ["Kode permintaan", "Posisi", "Perusahaan", "Tanggal"],
+                                ["Perusahaan", "Posisi", "Tahap saat ini",
+                                 "Tanggal dikirim"],
                                 [
                                     [
-                                        r["id_talent_req"], r["posisi"], r["perusahaan"],
-                                        "" if pd.isna(r["tanggal"]) else str(pd.Timestamp(r["tanggal"]).date()),
+                                        r["perusahaan"], r["posisi"],
+                                        r.get("tahap") or "-",
+                                        "-" if pd.isna(r["tanggal"])
+                                        else H.tanggal_id(
+                                            pd.Timestamp(r["tanggal"]).date()
+                                        ),
                                     ]
                                     for r in other_reqs
                                 ],
@@ -534,6 +559,11 @@ with c2:
                             ),
                             unsafe_allow_html=True,
                         )
+            elif all_selected_ids:
+                st.caption(
+                    "Kandidat yang dicentang tidak sedang mengikuti "
+                    "permintaan lain."
+                )
 
             # -- Kandidat terpilih dan aksi akhir --
             selected_export = detail_df.loc[
@@ -546,7 +576,7 @@ with c2:
             ].astype(str).tolist()
 
             st.markdown(
-                f"**{len(nim_list)} dari {tr_req['headcount']} dipilih."
+                f"**{len(nim_list)} dari {tr_req['headcount']} dipilih.**"
 
             )
 
