@@ -90,7 +90,7 @@ with head_l:
     st.markdown(
         H.page_header(
             "Analitik",
-            "Ringkasan kinerja program untuk pimpinan.",
+            "Ringkasan kinerja program.",
         ),
         unsafe_allow_html=True,
     )
@@ -127,10 +127,8 @@ rate_student = metrics.success_rate_per_student(ts)
 # card just below, and the summary points to it rather than restating it.
 st.markdown(
     H.callout(
-        H._fmt_id(num_student) + " mahasiswa berhasil ditempatkan, dihitung dari "
-        "mahasiswa yang disalurkan CDC. Tingkat keberhasilan per mahasiswa ada "
-        "di kartu di bawah. Angkanya stabil sepanjang periode dan merata di "
-        "semua program studi.",
+        H._fmt_id(num_student) + " mahasiswa berhasil ditempatkan. Angkanya "
+        "stabil sepanjang periode dan merata di semua program studi.",
         kind="accent", title="Ringkasan",
     ),
     unsafe_allow_html=True,
@@ -170,7 +168,7 @@ with st.container(border=True):
             H.kpi_card(
                 "Keberhasilan per pengiriman",
                 H.pct_id(rate_shipment * 100),
-                H._fmt_id(n_placement) + " placement dari " + H._fmt_id(n_base)
+                H._fmt_id(n_placement) + " penempatan dari " + H._fmt_id(n_base)
                 + " pengiriman",
                 accent=WARNA["ink2"], big=False,
             ),
@@ -212,7 +210,7 @@ fig.add_trace(
     go.Bar(
         x=trend["periode"],
         y=trend["volume"],
-        name="Volume pengiriman",
+        name="Jumlah pengiriman",
         marker_color=bar_colors,
         marker_pattern_shape=bar_patterns,
         yaxis="y",
@@ -222,7 +220,7 @@ fig.add_trace(
     go.Scatter(
         x=trend["periode"],
         y=trend["rate"] * 100,
-        name="Rate konversi (persen)",
+        name="Tingkat penerimaan (persen)",
         mode="lines+markers",
         line=dict(color=WARNA["ref"], width=2),
         yaxis="y2",
@@ -243,9 +241,9 @@ if bool(trend["partial"].iloc[-1]):
     )
 fig.update_layout(
     barmode="group",
-    yaxis=dict(title="Volume", rangemode="tozero"),
+    yaxis=dict(title="Jumlah pengiriman", rangemode="tozero"),
     yaxis2=dict(
-        title="Rate konversi (persen)",
+        title="Tingkat penerimaan (persen)",
         overlaying="y",
         side="right",
         rangemode="tozero",
@@ -261,7 +259,7 @@ with st.container(border=True):
     st.markdown(
         H.callout(
             "Periode terakhir bertanda garis miring belum lengkap. Pengiriman "
-            "berhenti di pertengahan periode, jadi volumenya belum penuh.",
+            "berhenti di pertengahan periode, jadi jumlahnya belum penuh.",
             kind="watch",
         ),
         unsafe_allow_html=True,
@@ -339,7 +337,7 @@ def _segment_bar_figure(df, label_col, title):
     f.update_layout(
         title=title,
         xaxis=dict(
-            title="Rate placement (persen)",
+            title="Tingkat penerimaan (persen)",
             range=[0, SEG_X_MAX],
             ticksuffix="%",
             rangemode="tozero",
@@ -370,7 +368,7 @@ prog_spread = (seg_prog["rate"].max() - seg_prog["rate"].min()) * 100
 sect_spread = (seg_sect["rate"].max() - seg_sect["rate"].min()) * 100
 st.markdown(
     H.callout(
-        "Kinerja konsisten antar segmen. Selisih rate antar program hanya "
+        "Kinerja konsisten antar segmen. Selisih antar program hanya "
         "sekitar " + str(round(prog_spread, 1)).replace(".", ",")
         + " poin persen, antar sektor sekitar "
         + str(round(sect_spread, 1)).replace(".", ",") + " poin persen. Semua "
@@ -397,15 +395,16 @@ st.caption(
 
 sort_label = st.selectbox(
     "Urutkan",
-    ["Rate tertinggi", "Volume terbanyak", "Paling andal (CI tersempit)"],
+    ["Tingkat penerimaan tertinggi", "Pengiriman terbanyak",
+     "Paling bisa dipegang"],
     key="league_sort",
 )
 
-if sort_label == "Rate tertinggi":
+if sort_label == "Tingkat penerimaan tertinggi":
     league_sorted = league.sort_values(
         ["lolos_gate", "wilson_center"], ascending=[False, False]
     )
-elif sort_label == "Volume terbanyak":
+elif sort_label == "Pengiriman terbanyak":
     league_sorted = league.sort_values("n", ascending=False)
 else:
     # Most reliable: narrowest CI first, among gate passers.
@@ -416,7 +415,7 @@ else:
 # Show the top slice for the barebones page. Full pagination is a later pass.
 top = league_sorted.head(25)
 
-columns = ["Perusahaan", "Kirim", "Penempatan", "Rate", "Interval 95%", "Pita"]
+columns = ["Perusahaan", "Dikirim", "Penempatan", "Tingkat penerimaan", "Interval 95%", "Pita"]
 align = ["left", "right", "right", "right", "left", "left"]
 rows = []
 for _, r in top.iterrows():
@@ -515,11 +514,10 @@ selisih = n_rej_pl - n_stage_pl
 st.markdown("---")
 st.markdown(
     H.callout(
-        "Penempatan di halaman ini dihitung " + H._fmt_id(n_rej_pl) + ", "
-        "mencakup semua yang pernah berhasil ditempatkan. Yang masih berstatus "
-        "aktif di tahap penempatan ada " + H._fmt_id(n_stage_pl) + ". Selisih "
-        + H._fmt_id(selisih) + " sudah diarsipkan sebagai selesai, dan tetap "
-        "dihitung berhasil. Ini konsisten dengan halaman Monitoring.",
+        "Penempatan dihitung " + H._fmt_id(n_rej_pl) + ", mencakup semua yang "
+        "pernah berhasil ditempatkan. Yang masih aktif di tahap penempatan ada "
+        + H._fmt_id(n_stage_pl) + "; selisih " + H._fmt_id(selisih) + " sudah "
+        "selesai dan tetap dihitung berhasil.",
         kind="muted", title="Catatan definisi",
     ),
     unsafe_allow_html=True,

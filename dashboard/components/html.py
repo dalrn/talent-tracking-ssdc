@@ -82,12 +82,12 @@ def health_chip(stale, x_days, drift_ok=True, drift_tip="", label="Kesehatan dat
 
     Condenses the drift status and the stale-sync count into one small stat.
     stale is the count of sync rows older than x_days. drift_ok picks the AMAN
-    (green) vs PERIKSA (red) badge; drift_tip is the hover tooltip that carries
+    (green) vs PERLU DICEK (red) badge; drift_tip is the hover tooltip that carries
     the full explanation so no space is spent on it. Styled by .health-chip in
     components/styles.py. Returns an HTML string.
     """
     badge_cls = "hc-badge" if drift_ok else "hc-badge warn"
-    badge_txt = "AMAN" if drift_ok else "PERIKSA"
+    badge_txt = "AMAN" if drift_ok else "PERLU DICEK"
     return (
         '<div class="health-chip">'
         + '<div class="hc-top">'
@@ -97,7 +97,7 @@ def health_chip(stale, x_days, drift_ok=True, drift_tip="", label="Kesehatan dat
         + '</div>'
         + '<div class="hc-main">'
         + '<span class="hc-value">' + _fmt_id(stale) + '</span>'
-        + '<span class="hc-unit">baris outdated</span>'
+        + '<span class="hc-unit">data belum diperbarui</span>'
         + '</div>'
         + '</div>'
     )
