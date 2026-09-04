@@ -375,7 +375,7 @@ with c2:
             )
         with bw6:
             bobot_preferensi = st.slider(
-                "Preferensi penempatan", 0, 100,
+                "Preferensi jenis kerja", 0, 100,
                 metrics.default_weight_percent("placement_preference"),
                 key="bobot_placement_preference",
             )
