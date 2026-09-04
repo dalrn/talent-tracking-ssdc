@@ -15,6 +15,7 @@
 # (CSS polish) is a later pass and lives in components/styles.py.
 
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 
 # Importing the core package runs core/__init__.py, which puts dashboard/ and
@@ -106,7 +107,7 @@ with head_r:
             value=config.SYNC_SLIDER_DEFAULT, key="sync_slider",
         )
         st.caption(
-            "Angka besar wajar: pembaruan status terakhir "
+            "Pembaruan status terakhir "
             + H.tanggal_id(data.SYNC_REF.date()) + ", sekitar 3,5 bulan "
             "sebelum data dibekukan."
         )
@@ -493,14 +494,32 @@ st.markdown(
 # ===========================================================================
 
 _section_title("Ekspor")
-e1, e2 = st.columns(2)
-with e1:
-    st.button("Cetak", key="cetak", help="Gunakan cetak browser untuk versi PDF")
-with e2:
-    # TODO(andalan): full PDF export. Print-friendly CSS is the minimum and
-    # lands in the styling pass (components/styles.py). A real PDF is optional.
-    st.button("Ekspor laporan (PDF)", key="ekspor_pdf", disabled=True,
-              help="Belum aktif. Sementara pakai Cetak lalu simpan sebagai PDF.")
+st.caption(
+    "Cetak halaman ini, atau simpan sebagai PDF lewat tujuan "
+    "“Save as PDF” di dialog cetak."
+)
+
+if st.button("Cetak", key="cetak"):
+    # st.components menjalankan HTML di dalam iframe, jadi window.print() polos
+    # hanya akan mencetak iframe kosong. window.parent menyasar dokumen
+    # aplikasi yang sebenarnya; try/catch berjaga bila peramban memblokir
+    # akses lintas dokumen, dengan iframe sendiri sebagai cadangan.
+    components.html(
+        """
+        <script>
+        (function () {
+            try {
+                window.parent.focus();
+                window.parent.print();
+            } catch (e) {
+                window.focus();
+                window.print();
+            }
+        })();
+        </script>
+        """,
+        height=0,
+    )
 
 
 # ===========================================================================

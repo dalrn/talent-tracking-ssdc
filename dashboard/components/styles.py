@@ -322,6 +322,46 @@ hr, [data-testid="stMarkdownContainer"] hr{
 [data-testid="stPopoverBody"], div[data-baseweb="popover"] [data-testid="stVerticalBlock"]{
   max-width: 320px;
 }
+
+/* ---- Cetak -------------------------------------------------------------
+   Tombol Cetak di Analitik memanggil dialog cetak peramban, jadi tampilan
+   cetak perlu diatur: chrome aplikasi (sidebar, toolbar, tombol) tidak ikut
+   tercetak, kanvas memakai lebar penuh kertas, dan panel tidak terpotong di
+   pergantian halaman. */
+@media print{
+  /* Chrome aplikasi yang tidak ada artinya di atas kertas. */
+  [data-testid="stSidebar"],
+  [data-testid="stSidebarCollapsedControl"],
+  [data-testid="stHeader"],
+  [data-testid="stToolbar"],
+  [data-testid="stStatusWidget"],
+  [data-testid="stAppDeployButton"],
+  .stButton, .stDownloadButton, [data-testid="stPopover"]{
+    display: none !important;
+  }
+
+  /* Kanvas memakai seluruh lebar kertas, tanpa sisa margin aplikasi. */
+  [data-testid="stAppViewContainer"], .main, .block-container,
+  [data-testid="stMainBlockContainer"]{
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Warna latar dan aksen ikut tercetak, bukan dibuang peramban. */
+  *{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* Jangan memotong panel, kartu, tabel, atau grafik di tengah halaman. */
+  [data-testid="stVerticalBlockBorderWrapper"], .kpi-card, .callout,
+  table, .stPlotlyChart{
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Judul tidak berdiri sendiri di kaki halaman. */
+  h1, h2, h3{ break-after: avoid; page-break-after: avoid; }
+}
 """
 
 
