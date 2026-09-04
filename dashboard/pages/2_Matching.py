@@ -324,7 +324,7 @@ with c2:
             )
             st.markdown(_attr("Program studi", prodi_text), unsafe_allow_html=True)
 
-        st.caption(f"Kehalian yang dibutuhkan: {tr_req['deskripsi_requirement']}")
+        st.caption(f"Keahlian yang dibutuhkan: {tr_req['deskripsi_requirement']}")
 
         st.divider()
 
