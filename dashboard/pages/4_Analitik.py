@@ -416,8 +416,9 @@ else:
 # Show the top slice for the barebones page. Full pagination is a later pass.
 top = league_sorted.head(25)
 
-columns = ["Perusahaan", "Dikirim", "Penempatan", "Tingkat penerimaan", "Interval 95%", "Pita"]
-align = ["left", "right", "right", "right", "left", "left"]
+columns = ["Perusahaan", "Dikirim", "Penempatan", "Tingkat penerimaan",
+           "Interval 95%"]
+align = ["left", "right", "right", "right", "left"]
 rows = []
 for _, r in top.iterrows():
     ci_text = (
@@ -427,19 +428,27 @@ for _, r in top.iterrows():
     perusahaan = H._esc(r["company"])
     if not r["lolos_gate"]:
         perusahaan = perusahaan + " " + H.badge("data sedikit", "warn")
-    band = H.ci_band_cell(r["wilson_lo"], r["wilson_center"], r["wilson_hi"])
+    # Angka interval dan pitanya jadi satu sel: pita adalah gambar dari angka
+    # di sebelahnya, bukan besaran lain, jadi memisahkannya ke kolom sendiri
+    # membuat pembaca menyeberang kolom untuk membaca satu hal yang sama.
+    # Lebar tetap pada teks menjaga pita tetap sejajar antar baris.
+    ci_cell = (
+        '<div style="display:flex;align-items:center;gap:10px;">'
+        + '<span style="min-width:104px;">' + ci_text + '</span>'
+        + H.ci_band_cell(r["wilson_lo"], r["wilson_center"], r["wilson_hi"])
+        + '</div>'
+    )
     rows.append([
         perusahaan,
         H._fmt_id(int(r["n"])),
         H._fmt_id(int(r["k"])),
         H.pct_id(r["rate"] * 100),
-        ci_text,
-        band,
+        ci_cell,
     ])
 
 st.markdown(
     H.read_only_table(
-        columns, rows, align=align, raw_html_cols={0, 5}
+        columns, rows, align=align, raw_html_cols={0, 4}
     ),
     unsafe_allow_html=True,
 )
