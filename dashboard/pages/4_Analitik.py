@@ -80,9 +80,9 @@ drift_ok = sum(drift.values()) == 0
 x_days = st.session_state.get("sync_slider", config.SYNC_SLIDER_DEFAULT)
 stale = metrics.sync_stale_count(ss, data.SYNC_REF, x_days)
 drift_tip = (
-    "student_all dan status_student 100 persen konsisten: 0 selisih pada "
-    "semester, program, nama, email."
-    if drift_ok else "Ada selisih antar tabel: " + str(drift)
+    "Data mahasiswa konsisten sepenuhnya: tidak ada selisih pada semester, "
+    "program studi, nama, maupun email."
+    if drift_ok else "Ada selisih pada data mahasiswa: " + str(drift)
 )
 
 head_l, head_r = st.columns([3.5, 0.85])
@@ -101,17 +101,16 @@ with head_r:
     )
     with st.popover("Ambang: " + str(x_days) + " hari"):
         st.slider(
-            "Ambang umur sync (hari)",
+            "Ambang umur pembaruan status (hari)",
             min_value=0, max_value=180,
             value=config.SYNC_SLIDER_DEFAULT, key="sync_slider",
         )
         st.caption(
-            "Angka baris outdated ini wajar besar. Ini snapshot data yang "
-            "dibekukan, dan tabel sync berhenti di Januari. Sync terakhir "
-            + H.tanggal_id(data.SYNC_REF.date()) + ", sekitar 3,5 bulan sebelum "
-            "tanggal acuan " + H.tanggal_id(data.ANCHOR.date()) + ". Jadi pada "
-            "ambang " + str(x_days) + " hari, jumlah besar bukan tanda masalah "
-            "data. Status konsistensi tetap AMAN."
+            "Jumlah yang besar di sini wajar. Data dibekukan pada "
+            + H.tanggal_id(data.ANCHOR.date()) + ", sedangkan pembaruan status "
+            "terakhir " + H.tanggal_id(data.SYNC_REF.date()) + ", sekitar 3,5 "
+            "bulan sebelumnya. Jadi pada ambang " + str(x_days) + " hari, angka "
+            "besar bukan tanda masalah data."
         )
 
 rate_shipment = metrics.success_rate_per_shipment(ts)
@@ -261,7 +260,7 @@ with st.container(border=True):
     st.plotly_chart(fig, use_container_width=True, theme=None)
     st.markdown(
         H.callout(
-            "Periode terakhir bertanda garis miring belum lengkap. Data send_date "
+            "Periode terakhir bertanda garis miring belum lengkap. Pengiriman "
             "berhenti di pertengahan periode, jadi volumenya belum penuh.",
             kind="watch",
         ),
@@ -375,7 +374,7 @@ st.markdown(
         "sekitar " + str(round(prog_spread, 1)).replace(".", ",")
         + " poin persen, antar sektor sekitar "
         + str(round(sect_spread, 1)).replace(".", ",") + " poin persen. Semua "
-        "dekat rata-rata. Selisih kecil ini tidak perlu dilebih-lebihkan.",
+        "segmen dekat rata-rata.",
         kind="muted",
     ),
     unsafe_allow_html=True,
@@ -417,17 +416,17 @@ else:
 # Show the top slice for the barebones page. Full pagination is a later pass.
 top = league_sorted.head(25)
 
-columns = ["Perusahaan", "Kirim", "Placement", "Rate", "Selang 95%", "Pita"]
+columns = ["Perusahaan", "Kirim", "Penempatan", "Rate", "Interval 95%", "Pita"]
 align = ["left", "right", "right", "right", "left", "left"]
 rows = []
 for _, r in top.iterrows():
     ci_text = (
-        H.pct_id(r["wilson_lo"] * 100) + " sampai "
+        H.pct_id(r["wilson_lo"] * 100) + "–"
         + H.pct_id(r["wilson_hi"] * 100)
     )
     perusahaan = H._esc(r["company"])
     if not r["lolos_gate"]:
-        perusahaan = perusahaan + " " + H.badge("n kecil", "warn")
+        perusahaan = perusahaan + " " + H.badge("data sedikit", "warn")
     band = H.ci_band_cell(r["wilson_lo"], r["wilson_center"], r["wilson_hi"])
     rows.append([
         perusahaan,
@@ -444,9 +443,7 @@ st.markdown(
     ),
     unsafe_allow_html=True,
 )
-st.caption("Menampilkan 25 baris teratas sesuai urutan. Titik = center Wilson, "
-           "pita = rentang selang kepercayaan 95 persen. Kirim = jumlah "
-           "pengiriman, Placement = jumlah penempatan berhasil.")
+st.caption("Menampilkan 25 baris teratas sesuai urutan.")
 
 
 # ===========================================================================
@@ -465,9 +462,10 @@ n_lag = len(C.placed_belum_update_status(ss, ts, FKEY))
 # meaning unchanged: still a coverage limit, still not counted as success.
 st.markdown(
     H.callout(
-        H._fmt_id(n_luar) + " mahasiswa berstatus Placed tanpa satu pun jejak "
-        "di tracking. Tidak dihitung sebagai keberhasilan program CDC.",
-        kind="watch", title="Placed di luar alur CDC",
+        H._fmt_id(n_luar) + " mahasiswa tercatat sudah ditempatkan, tetapi "
+        "tidak punya satu pun jejak proses di sistem CDC. Tidak dihitung "
+        "sebagai keberhasilan program CDC.",
+        kind="watch", title="Ditempatkan di luar alur CDC",
     ),
     unsafe_allow_html=True,
 )
@@ -475,14 +473,14 @@ st.markdown(
 notes_columns = ["Temuan", "Jumlah", "Perlakuan"]
 notes_rows = [
     [
-        "Anomali Finish dan On Progress",
+        "Proses selesai tetapi statusnya masih berjalan",
         H._fmt_id(n_anom),
-        "Dikeluarkan dari semua perhitungan rate. Dilaporkan sebagai isu data.",
+        "Dikeluarkan dari semua perhitungan tingkat keberhasilan.",
     ],
     [
-        "Placement tapi status belum Placed",
+        "Sudah ditempatkan tetapi status belum diperbarui",
         H._fmt_id(n_lag),
-        "Asumsi keterlambatan update status. Tidak bisa diverifikasi.",
+        "Diduga keterlambatan pembaruan status. Belum bisa dipastikan.",
     ],
 ]
 st.markdown(
@@ -517,12 +515,11 @@ selisih = n_rej_pl - n_stage_pl
 st.markdown("---")
 st.markdown(
     H.callout(
-        "Definisi placement di halaman ini memakai kolom rejection bernilai "
-        "Placement, totalnya " + H._fmt_id(n_rej_pl) + ". Angka tahap saat ini "
-        "Placement (progress_student) adalah " + H._fmt_id(n_stage_pl) + ". "
-        "Selisih " + H._fmt_id(selisih) + " adalah placement yang sudah "
-        "diarsipkan ke Finish, tetap dihitung berhasil. Ini konsisten dengan "
-        "halaman Monitoring.",
+        "Penempatan di halaman ini dihitung " + H._fmt_id(n_rej_pl) + ", "
+        "mencakup semua yang pernah berhasil ditempatkan. Yang masih berstatus "
+        "aktif di tahap penempatan ada " + H._fmt_id(n_stage_pl) + ". Selisih "
+        + H._fmt_id(selisih) + " sudah diarsipkan sebagai selesai, dan tetap "
+        "dihitung berhasil. Ini konsisten dengan halaman Monitoring.",
         kind="muted", title="Catatan definisi",
     ),
     unsafe_allow_html=True,

@@ -259,8 +259,14 @@ if cari.strip():
     if not is_eligible:
         hay = hay + " " + disp_full["Perusahaan & posisi"].str.lower()
     keep = hay.str.contains(key, na=False)
-    disp_full = disp_full[keep].reset_index(drop=True)
+    # Slice both frames with the SAME original index, then reset each one.
+    # Resetting disp_full first would renumber it 0..N-1 and make the
+    # view.loc[] lookup pick the first N rows of the unfiltered view instead
+    # of the matching ones: the row count looked right while the contents
+    # were wrong.
+    disp_full = disp_full[keep]
     view = view.loc[disp_full.index].reset_index(drop=True)
+    disp_full = disp_full.reset_index(drop=True)
 
 
 # Read any prior selection first: the layout depends on whether a row is
@@ -296,7 +302,8 @@ def _render_queue():
     _section_title(active_seg + "  (" + H._fmt_id(len(view)) + " baris)")
     if not is_eligible:
         st.caption(
-            "Kolom Diam (hari) dihitung terhadap tanggal acuan "
+            "Kolom Diam (hari) dihitung sampai " + H.tanggal_id(data.ANCHOR.date())
+            + ", tanggal data dibekukan."
         )
     link_col = st.column_config.LinkColumn("Kontak", display_text="WhatsApp")
     return st.dataframe(
@@ -346,7 +353,7 @@ if sel_rows and right_ctx is not None:
 
         prof_rows = ss[ss["NIM"] == nim]
         if len(prof_rows) == 0:
-            st.warning("Profil status_student tidak ditemukan untuk NIM ini.")
+            st.warning("Profil mahasiswa tidak ditemukan untuk NIM ini.")
         else:
             prof = prof_rows.iloc[0]
 
@@ -427,8 +434,7 @@ if sel_rows and right_ctx is not None:
 
 st.markdown("---")
 st.caption(
-    "Antrean memakai label progress_student apa adanya (bukan hitung ulang), "
-    "sesuai aturan follow-up. Segmen diurut dari yang paling mendesak, dan di "
-    "dalam satu segmen diurut dari yang paling lama diam. Tanda 'ditindak' "
-    "hanya sesi ini, tidak tersimpan permanen."
+    "Segmen diurut dari yang paling mendesak, dan di dalam satu segmen diurut "
+    "dari yang paling lama tidak ada kabar. Tanda 'ditindak' hanya berlaku di "
+    "sesi ini, tidak tersimpan permanen."
 )

@@ -106,7 +106,7 @@ def render_drilldown_panel(nim, status_student, tracking_student, student_all):
     """
     prof_rows = status_student[status_student["NIM"] == nim]
     if prof_rows.empty:
-        st.info("Profil mahasiswa tidak ditemukan di status_student.")
+        st.info("Profil mahasiswa tidak ditemukan.")
         return
     prof = prof_rows.iloc[0]
 

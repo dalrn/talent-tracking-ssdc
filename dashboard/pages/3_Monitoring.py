@@ -296,13 +296,13 @@ if view == "Mahasiswa":
         def _company_row(row):
             kirim = H._fmt_id(int(row["n"]))
             if not row["lolos_gate"]:
-                kirim = kirim + " " + H.badge("n kecil", "warn")
+                kirim = kirim + " " + H.badge("data sedikit", "warn")
             # True Wilson bounds, shown as an explicit range (asymmetric near the
             # edges). NOT a symmetric half-width around the raw rate.
             lo_pct = round(row["wilson_lo"] * 100)
             hi_pct = round(row["wilson_hi"] * 100)
             rate_text = str(round(row["rate"] * 100, 1)).replace(".", ",") + "%"
-            range_text = str(lo_pct) + "% sampai " + str(hi_pct) + "%"
+            range_text = str(lo_pct) + "%–" + str(hi_pct) + "%"
             band_html = H.ci_band_cell(
                 row["wilson_lo"], row["wilson_center"], row["wilson_hi"], width_px=120
             )
@@ -349,7 +349,7 @@ if view == "Mahasiswa":
         # MIN_N_RANKING shipments enter the list, so a fluke n=1 rate of 100%
         # can never top the ranking. Small-sample rows go behind a toggle.
         show_small = st.toggle(
-            "Tampilkan perusahaan bersampel kecil",
+            "Tampilkan perusahaan dengan data sedikit",
             value=False, key="show_small_sample",
         )
         ranked_source = league if show_small else league[league["lolos_gate"]]
@@ -361,7 +361,7 @@ if view == "Mahasiswa":
             'color:' + WARNA["muted"] + ';">'
             '<div style="flex:1;">Perusahaan</div>'
             '<div style="min-width:88px;text-align:right;">Kirim</div>'
-            '<div style="min-width:120px;text-align:right;">Selang 95%</div>'
+            '<div style="min-width:120px;text-align:right;">Interval 95%</div>'
             '<div style="min-width:150px;text-align:right;">Tingkat penerimaan</div>'
             '</div>',
             unsafe_allow_html=True,
@@ -373,7 +373,7 @@ if view == "Mahasiswa":
         ).head(5).reset_index(drop=True)
 
         if top5_league.empty:
-            st.caption("Tidak ada perusahaan yang memenuhi ambang sampel untuk filter aktif.")
+            st.caption("Tidak ada perusahaan yang memenuhi ambang minimal pengiriman untuk filter ini.")
         else:
             for _, row in top5_league.iterrows():
                 st.markdown(_company_row(row), unsafe_allow_html=True)
@@ -385,22 +385,10 @@ if view == "Mahasiswa":
         # Dynamic example, computed not hardcoded: widest vs narrowest CI band
         # among companies that pass the sample size gate. to_dict() turns the row
         # into plain scalars so int()/round() aren't fed a pandas Scalar union.
-        gated = league[league["lolos_gate"]]
-        if not gated.empty:
-            widest = gated.loc[gated["ci_width"].idxmax()].to_dict()
-            narrowest = gated.loc[gated["ci_width"].idxmin()].to_dict()
-            st.caption(
-                "Titik = tingkat penerimaan; pita = selang kepercayaan 95% "
-                "(Wilson). Pita lebar berarti sampel kecil, ranking belum bisa "
-                "dipercaya. Contoh: " + str(widest["company"]) + " (kirim "
-                + str(int(widest["n"])) + ") punya pita "
-                + str(round(widest["wilson_lo"] * 100)) + "% sampai "
-                + str(round(widest["wilson_hi"] * 100)) + "%, sedangkan "
-                + str(narrowest["company"]) + " (kirim "
-                + str(int(narrowest["n"])) + ") punya pita "
-                + str(round(narrowest["wilson_lo"] * 100)) + "% sampai "
-                + str(round(narrowest["wilson_hi"] * 100)) + "%."
-            )
+        st.caption(
+            "Pita lebar berarti jumlah pengiriman masih sedikit, "
+            "sehingga urutannya belum bisa dipegang."
+        )
 
 
 # =============================================================================
@@ -485,9 +473,9 @@ if view == "Perusahaan":
             )
         st.markdown(
             H.callout(
-                "Label 'kemungkinan' dipakai karena klasifikasi ini inferensi dari "
-                "urutan tanggal last_update terhadap tanggal placement, bukan "
-                "keterangan eksplisit di data tentang siapa yang tidak merespons.",
+                "Label 'kemungkinan' dipakai karena pembagian ini disimpulkan dari "
+                "urutan tanggal pembaruan terakhir terhadap tanggal penempatan, "
+                "bukan keterangan langsung tentang siapa yang tidak merespons.",
                 kind="muted",
             ),
             unsafe_allow_html=True,
@@ -555,12 +543,12 @@ if view == "Perusahaan":
         _panel_marker()
         _section_title("Waktu respons per perusahaan (proses terbuka)")
         st.caption(
-            "Rata-rata umur (hari sejak dikirim) proses yang belum selesai per "
-            "perusahaan. Lolos gate bila minimal " + str(config.MIN_N_RANKING)
-            + " pengiriman, diurutkan dari yang paling lama menunggu. Umur "
-            "dihitung terhadap tanggal acuan " + ANCHOR_TXT + " pada snapshot "
-            "data yang dibekukan, jadi angka mutlaknya besar secara wajar. Yang "
-            "berguna dibaca adalah urutan relatifnya, bukan angka harinya."
+            "Rata-rata lama menunggu (hari sejak kandidat dikirim) untuk proses "
+            "yang belum selesai. Hanya perusahaan dengan minimal "
+            + str(config.MIN_N_RANKING) + " pengiriman yang ditampilkan, "
+            "diurutkan dari yang paling lama menunggu. Karena data dibekukan "
+            "pada " + ANCHOR_TXT + ", yang berguna dibaca adalah urutannya, "
+            "bukan angka harinya."
         )
 
         response_time = C.response_time_per_company(
@@ -596,7 +584,7 @@ if view == "Perusahaan":
             )
             st.caption(
                 "Menampilkan 10 teratas dari " + H._fmt_id(len(response_full))
-                + " perusahaan yang lolos gate."
+                + " perusahaan yang memenuhi ambang minimal pengiriman."
             )
 
     # =======================================================================
@@ -643,10 +631,9 @@ if view == "Perusahaan":
                 unsafe_allow_html=True,
             )
             st.caption(
-                "Usia dihitung terhadap tanggal acuan " + ANCHOR_TXT + " pada "
-                "snapshot data yang dibekukan, jadi angka mutlaknya besar secara "
-                "wajar. Menampilkan 10 tertua dari " + H._fmt_id(len(draft_sorted))
-                + " request Draft."
+                "Usia dihitung sampai " + ANCHOR_TXT + ", tanggal data "
+                "dibekukan. Menampilkan 10 tertua dari "
+                + H._fmt_id(len(draft_sorted)) + " permintaan yang belum digarap."
             )
 
 

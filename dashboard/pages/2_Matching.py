@@ -296,7 +296,7 @@ with c2:
         w1, w2 = st.columns([3, 1])
         with w1:
             st.markdown("**Bobot komponen skor**")
-            st.caption("Gerbang wajib (Available, semester minimum) bukan bobot: kandidat gagal gerbang tidak muncul.")
+            st.caption("Syarat wajib (mahasiswa tersedia dan semester minimum) bukan bobot. Kandidat yang tidak memenuhi syarat tidak ditampilkan.")
         with w2:
             if st.button(
                 "Reset ke bobot default",
@@ -431,9 +431,12 @@ with c2:
             display["Tools cocok"] = show_df["Matched Tools"]
             # Flag "proses lain": aktif bila kandidat masih ada di request lain.
             display["Proses lain"] = show_df["Jumlah Request Lain"] > 0
-            # Flag "tanpa CV": CV bukan "Ada".
-            display["Tanpa CV"] = (
-                show_df["CV"].astype(str).str.strip() != schema.CV_ADA
+            # Status CV, dibaca langsung sebagai "Ada" atau "Tidak" (bukan
+            # centang terbalik yang harus ditafsirkan dulu oleh pembaca).
+            display["CV"] = (
+                show_df["CV"].astype(str).str.strip()
+                .eq(schema.CV_ADA)
+                .map({True: "Ada", False: "Tidak"})
             )
 
             display.insert(
@@ -466,8 +469,9 @@ with c2:
                         "Proses lain",
                         help="Kandidat sedang berada di request lain yang masih aktif.",
                     ),
-                    "Tanpa CV": st.column_config.CheckboxColumn(
-                        "Tanpa CV", help="Kandidat belum melampirkan CV.",
+                    "CV": st.column_config.TextColumn(
+                        "CV", width="small",
+                        help="Apakah kandidat sudah melampirkan CV.",
                     ),
                 },
                 key=f"candidate_editor_{tid}_{top_n_label}",

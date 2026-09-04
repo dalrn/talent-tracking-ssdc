@@ -99,7 +99,7 @@ def render_sidebar(data):
         with st.container():
             st.markdown("<span class='sb-bottom'></span>", unsafe_allow_html=True)
             st.markdown("**Filter tanggal**")
-            st.caption("Basis: tanggal pengiriman (send_date).")
+            st.caption("Berdasarkan tanggal pengiriman kandidat.")
             picked = st.date_input(
                 "Rentang tanggal",
                 value=(lo, hi),
