@@ -109,7 +109,7 @@ periode_filter = st.session_state.get("rentang_periode")
 st.markdown(
     H.page_header(
         "Monitoring",
-        "Di mana calon paling banyak gugur, dan polanya.",
+        "Di mana calon paling banyak gugur beserta polanya.",
     ),
     unsafe_allow_html=True,
 )
