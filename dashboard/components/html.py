@@ -273,7 +273,7 @@ def funnel_bar(label, sublabel, aktif, gugur=0, gugur_label="",
     aktif_pct = round(aktif / scale * 100, 2) if scale else 0
     gugur_pct = round(gugur / scale * 100, 2) if scale else 0
 
-    aktif_text = _fmt_id(aktif) + (" placed" if is_placement else "")
+    aktif_text = _fmt_id(aktif) + (" ditempatkan" if is_placement else "")
     active_radius = "4px 0 0 4px" if gugur > 0 else "4px"
 
     bar_html = (

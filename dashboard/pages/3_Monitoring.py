@@ -109,7 +109,7 @@ periode_filter = st.session_state.get("rentang_periode")
 st.markdown(
     H.page_header(
         "Monitoring",
-        "Di mana alur seleksi bocor, dan pola apa yang sistemik.",
+        "Di mana calon paling banyak gugur, dan pola apa yang berulang.",
     ),
     unsafe_allow_html=True,
 )
@@ -182,8 +182,8 @@ if view == "Mahasiswa":
     # =======================================================================
     with st.container(border=True):
         _panel_marker()
-        _section_title("Funnel Seleksi")
-        st.caption("Klik satu tahap untuk membuka daftarnya di Beranda.")
+        _section_title("Alur Seleksi")
+        st.caption("Klik satu tahap untuk melihat daftar mahasiswanya.")
 
         active_counts = metrics.funnel_active_counts(ts_filtered)
         drop_counts = metrics.funnel_drop_counts(ts_filtered)
@@ -193,19 +193,28 @@ if view == "Mahasiswa":
         drop_vals = [drop_counts.get(s, 0) for s in stages]
         max_val = max(active_counts[s] + drop_counts.get(s, 0) for s in stages)
 
+        # Judul tahap dalam bahasa Indonesia, nama asli dari data dipakai
+        # sebagai sublabel. schema.STAGE_* tidak boleh diterjemahkan karena
+        # nilainya dipakai mencocokkan progress_student, jadi penerjemahan
+        # hanya terjadi di lapisan tampilan ini. Sublabel tetap menampilkan
+        # istilah aslinya supaya angka di dashboard masih bisa ditelusuri
+        # kembali ke dataset.
+        STAGE_JUDUL = {
+            schema.STAGE_SELECTING: "Peninjauan profil",
+            schema.STAGE_BRIEFING: "Pembekalan CDC",
+            schema.STAGE_STUDYCASE: "Studi kasus",
+            schema.STAGE_INTERVIEW: "Wawancara pengguna",
+            schema.STAGE_FINAL: "Wawancara akhir",
+            schema.STAGE_PLACEMENT: "Penempatan",
+        }
         STAGE_SUBLABELS = {
-            schema.STAGE_SELECTING: "perusahaan meninjau profil",
-            schema.STAGE_BRIEFING: "briefing oleh CDC",
-            schema.STAGE_STUDYCASE: "tes / studi kasus",
-            schema.STAGE_INTERVIEW: "wawancara hiring manager",
-            schema.STAGE_FINAL: "wawancara tahap akhir",
-            schema.STAGE_PLACEMENT: "diterima & ditempatkan",
+            stage: stage for stage in schema.FUNNEL_ORDER
         }
         STAGE_GUGUR_LABELS = {
-            schema.STAGE_SELECTING: "gugur screening CV",
-            schema.STAGE_STUDYCASE: "gugur study case",
-            schema.STAGE_INTERVIEW: "gugur interview user",
-            schema.STAGE_FINAL: "gugur final",
+            schema.STAGE_SELECTING: "gugur seleksi CV",
+            schema.STAGE_STUDYCASE: "gugur studi kasus",
+            schema.STAGE_INTERVIEW: "gugur wawancara",
+            schema.STAGE_FINAL: "gugur wawancara akhir",
         }
 
         for stage in stages:
@@ -213,7 +222,7 @@ if view == "Mahasiswa":
             with col_bar:
                 st.markdown(
                     H.funnel_bar(
-                        label=stage,
+                        label=STAGE_JUDUL.get(stage, stage),
                         sublabel=STAGE_SUBLABELS.get(stage, ""),
                         aktif=active_counts[stage],
                         gugur=drop_counts.get(stage, 0),
@@ -230,14 +239,14 @@ if view == "Mahasiswa":
                     st.markdown(
                         "<div style='font-size:0.72rem;color:" + WARNA["muted"]
                         + ";margin:-4px 0 4px 226px;'>"
-                        "Tidak ada kategori gugur tercatat untuk tahap ini."
+                        "Tidak ada yang gugur di tahap ini."
                         "</div>",
                         unsafe_allow_html=True,
                     )
             with col_btn:
                 # Native button required to catch a click (Plotly funnel click-event
                 # is not reliably capturable), per spec point 2c.
-                if st.button("Buka", key="buka_" + stage, use_container_width=True):
+                if st.button("Lihat daftar", key="buka_" + stage, use_container_width=True):
                     st.session_state["beranda_segment"] = {
                         "stage": stage,
                         "source_page": "Monitoring",
@@ -255,7 +264,7 @@ if view == "Mahasiswa":
             '</span>Gugur</div>'
             '<div><span style="display:inline-block;width:12px;height:12px;'
             'background:' + WARNA["ok"] + ';border-radius:2px;margin-right:6px;">'
-            '</span>Placement</div>'
+            '</span>Ditempatkan</div>'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -360,7 +369,7 @@ if view == "Mahasiswa":
             'font-size:0.68rem;text-transform:uppercase;letter-spacing:0.04em;'
             'color:' + WARNA["muted"] + ';">'
             '<div style="flex:1;">Perusahaan</div>'
-            '<div style="min-width:88px;text-align:right;">Kirim</div>'
+            '<div style="min-width:88px;text-align:right;">Dikirim</div>'
             '<div style="min-width:120px;text-align:right;">Interval 95%</div>'
             '<div style="min-width:150px;text-align:right;">Tingkat penerimaan</div>'
             '</div>',
@@ -401,8 +410,8 @@ if view == "Perusahaan":
     # =======================================================================
     with st.container(border=True):
         _panel_marker()
-        _section_title("Pola ghosting")
-        st.caption("Tingkat sistem, bukan per orang.")
+        _section_title("Pola tanpa respons")
+        st.caption("Dilihat di tingkat sistem, bukan per orang.")
 
         n_reporting = int(metrics.ghosting_reporting_mask(ts_filtered).sum())
         n_operasional = int(metrics.ghosting_operasional_mask(ts_filtered).sum())
@@ -411,9 +420,9 @@ if view == "Perusahaan":
         with col1:
             st.markdown(
                 H.kpi_card(
-                    "Total kasus ghosting, sepanjang riwayat",
+                    "Total sepanjang riwayat",
                     H._fmt_id(n_reporting),
-                    "Semua kasus yang pernah berstatus Ghosting sepanjang riwayat",
+                    "termasuk yang sudah selesai ditangani",
                     accent=WARNA["accent"], big=True,
                 ),
                 unsafe_allow_html=True,
@@ -421,30 +430,19 @@ if view == "Perusahaan":
         with col2:
             st.markdown(
                 H.kpi_card(
-                    "Ghosting aktif, belum ditindaklanjuti",
+                    "Masih aktif",
                     H._fmt_id(n_operasional),
-                    "Hanya proses yang saat ini masih berstatus Ghosting",
+                    "belum ditindaklanjuti, perlu dikejar",
                     accent=WARNA["accent"], big=True,
                 ),
                 unsafe_allow_html=True,
             )
-        st.markdown(
-            H.callout(
-                "Angka total mencakup semua kasus yang pernah berstatus "
-                "Ghosting sepanjang riwayat, termasuk yang sudah diarsipkan ke "
-                "Finish. Angka aktif hanya proses yang saat ini masih "
-                "berstatus Ghosting dan belum ditindaklanjuti.",
-                kind="accent", title="Kenapa dua angka ini berbeda",
-            ),
-            unsafe_allow_html=True,
-        )
-
     # =======================================================================
     # 2. Klasifikasi tipe ghosting.
     # =======================================================================
     with st.container(border=True):
         _panel_marker()
-        _section_title("Klasifikasi tipe ghosting")
+        _section_title("Perkiraan penyebab")
 
         klas = C.klasifikasi_ghosting_reporting(ts_filtered, FKEY)
         tipe_counts = klas["tipe_ghosting"].value_counts()
@@ -452,30 +450,29 @@ if view == "Perusahaan":
         k1, k2, k3 = st.columns(3)
         with k1:
             st.markdown(
-                H.kpi_card("Kemungkinan murni perusahaan",
+                H.kpi_card("Perusahaan tidak merespons",
                            H._fmt_id(int(tipe_counts.get("murni_perusahaan", 0))),
                            accent=WARNA["ink"]),
                 unsafe_allow_html=True,
             )
         with k2:
             st.markdown(
-                H.kpi_card("Kemungkinan mahasiswa mangkir",
+                H.kpi_card("Mahasiswa mundur",
                            H._fmt_id(int(tipe_counts.get("mahasiswa_mangkir", 0))),
                            accent=WARNA["ink"]),
                 unsafe_allow_html=True,
             )
         with k3:
             st.markdown(
-                H.kpi_card("Tak tentu",
+                H.kpi_card("Belum bisa dipastikan",
                            H._fmt_id(int(tipe_counts.get("tak_tentu", 0))),
                            accent=WARNA["ink"]),
                 unsafe_allow_html=True,
             )
         st.markdown(
             H.callout(
-                "Label 'kemungkinan' dipakai karena pembagian ini disimpulkan dari "
-                "urutan tanggal pembaruan terakhir terhadap tanggal penempatan, "
-                "bukan keterangan langsung tentang siapa yang tidak merespons.",
+                "Disebut 'kemungkinan' karena pembagian ini disimpulkan dari "
+                "urutan tanggal, bukan keterangan langsung di data.",
                 kind="muted",
             ),
             unsafe_allow_html=True,
@@ -494,7 +491,7 @@ if view == "Perusahaan":
 
         def _ghost_table(df):
             gated = df[df["lolos_gate"]].sort_values("rate", ascending=False).head(5)
-            columns = ["Perusahaan", "Kirim", "Ghosting", "Rate"]
+            columns = ["Perusahaan", "Dikirim", "Tanpa respons", "Rate"]
             align = ["left", "right", "right", "right"]
             rows = []
             for _, r in gated.iterrows():
@@ -508,10 +505,10 @@ if view == "Perusahaan":
 
         col_a, col_b = st.columns(2)
         with col_a:
-            st.markdown("**Semua ghosting**")
+            st.markdown("**Semua kasus**")
             st.markdown(_ghost_table(ghost_all), unsafe_allow_html=True)
         with col_b:
-            st.markdown("**Murni perusahaan saja**")
+            st.markdown("**Perusahaan tidak merespons**")
             st.markdown(_ghost_table(ghost_murni), unsafe_allow_html=True)
 
         worst_company, worst_k = C.max_ghosting_case_company(
@@ -520,10 +517,9 @@ if view == "Perusahaan":
         if worst_company is not None:
             st.markdown(
                 H.callout(
-                    "Perusahaan ghosting terbanyak hanya " + H._fmt_id(worst_k)
-                    + " kasus (" + str(worst_company) + "). Ghosting adalah "
-                    "masalah sistematik yang butuh mekanisme follow up "
-                    "terstruktur, bukan sekadar menandai beberapa perusahaan.",
+                    "Perusahaan dengan kasus terbanyak pun hanya "
+                    + H._fmt_id(worst_k) + " kasus (" + str(worst_company)
+                    + "). Masalahnya tersebar, bukan segelintir perusahaan.",
                     kind="watch", title="Tersebar, bukan segelintir pelaku",
                 ),
                 unsafe_allow_html=True,
@@ -543,12 +539,10 @@ if view == "Perusahaan":
         _panel_marker()
         _section_title("Waktu respons per perusahaan (proses terbuka)")
         st.caption(
-            "Rata-rata lama menunggu (hari sejak kandidat dikirim) untuk proses "
-            "yang belum selesai. Hanya perusahaan dengan minimal "
-            + str(config.MIN_N_RANKING) + " pengiriman yang ditampilkan, "
-            "diurutkan dari yang paling lama menunggu. Karena data dibekukan "
-            "pada " + ANCHOR_TXT + ", yang berguna dibaca adalah urutannya, "
-            "bukan angka harinya."
+            "Rata-rata lama menunggu untuk proses yang belum selesai, "
+            "dihitung sejak kandidat dikirim. Karena data dibekukan pada "
+            + ANCHOR_TXT + ", yang berguna dibaca adalah urutannya, bukan "
+            "angka harinya."
         )
 
         response_time = C.response_time_per_company(
@@ -592,12 +586,12 @@ if view == "Perusahaan":
     # =======================================================================
     with st.container(border=True):
         _panel_marker()
-        _section_title("Status request per perusahaan")
+        _section_title("Permintaan yang belum digarap")
 
         draft_df = metrics.draft_requests(tc_filtered)
         st.markdown(
             H.kpi_card(
-                "Request berstatus Draft (belum dilayani)",
+                "Belum ada kandidat yang dikirim",
                 H._fmt_id(len(draft_df)),
                 accent=WARNA["ink"],
             ),
@@ -616,7 +610,7 @@ if view == "Perusahaan":
 
             # Add the requested position column so the row is not a name and a
             # lone number stretched across the panel width.
-            columns = ["Perusahaan", "Posisi", "Usia request"]
+            columns = ["Perusahaan", "Posisi", "Usia permintaan"]
             align = ["left", "left", "right"]
             rows = []
             draft_sorted = draft_display.sort_values("usia_hari", ascending=False)
