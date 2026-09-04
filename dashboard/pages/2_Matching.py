@@ -83,7 +83,7 @@ def _breakdown_text(row):
     # Prodi: Program Study Score sudah 0-100. 100 berarti prodi persis cocok.
     prodi_score = float(row.get("Program Study Score", 0) or 0)
     if prodi_score >= 100:
-        parts.append("prodi ok")
+        parts.append("prodi cocok")
     elif prodi_score >= 35:
         parts.append("prodi mirip")
     else:
@@ -94,9 +94,9 @@ def _breakdown_text(row):
     coverage = float(row.get("Coverage Tools", 0) or 0)
     total_tools = round(cocok / (coverage / 100)) if coverage > 0 else 0
     if total_tools > 0:
-        parts.append(f"tools {cocok}/{total_tools}")
+        parts.append(f"{cocok}/{total_tools} keahlian cocok")
     else:
-        parts.append("tools 0")
+        parts.append("keahlian tidak tercatat")
 
     # IPK: dua desimal, koma desimal Indonesia.
     ipk = row.get("IPK", None)
@@ -163,7 +163,7 @@ with c1:
     with st.container(height=760):
         cel1, cel2 = st.columns([1, 1])
         with cel1:
-            st.markdown("**Permintaan Terbuka**")
+            st.markdown("**Permintaan terbuka**")
         with cel2:
             st.markdown(
                 f"<div style='text-align: right;'><b>{str(n_req)}</b> belum dikirimkan</div>",
@@ -196,11 +196,14 @@ with c1:
         else:
             req_sorted = req_filtered.sort_values("jumlah_permintaan", ascending = True)
 
-        # request yang dicari lewat search box dinaikkan ke atas
+        # Permintaan yang dipilih lewat kotak cari menyaring tabel, bukan
+        # sekadar dinaikkan ke atas. Sebelumnya seluruh 598 baris tetap
+        # tampil dengan yang cocok di baris pertama, sehingga hasil pencarian
+        # tidak terlihat seperti hasil pencarian.
         if selected:
-            selected_rows = req_sorted[req_sorted['label'] == selected]
-            other_rows = req_sorted[req_sorted['label'] != selected]
-            req_show = pd.concat([selected_rows, other_rows], ignore_index = True)
+            req_show = req_sorted[req_sorted["label"] == selected].reset_index(
+                drop=True
+            )
         else:
             req_show = req_sorted
 
@@ -212,8 +215,20 @@ with c1:
             on_select = "rerun",
             selection_mode = 'single-row',
             column_config = {
-                col: st.column_config.Column(label)
-                for col, label in REQ_TABLE_COLS.items()
+                # Lebar diatur per kolom supaya panel kiri yang sempit tidak
+                # perlu digeser mendatar: dua kolom teks dapat porsi utama,
+                # tiga kolom angka dipersempit. Sebelumnya kelimanya memakai
+                # lebar otomatis dan kolom Perusahaan ikut terpotong.
+                "nama_perusahaan": st.column_config.TextColumn(
+                    label="Perusahaan", width="medium"),
+                "posisi": st.column_config.TextColumn(
+                    label="Posisi", width="medium"),
+                "jumlah_permintaan": st.column_config.NumberColumn(
+                    label="Butuh", width="small"),
+                "jumlah_dikirimkan": st.column_config.NumberColumn(
+                    label="Terkirim", width="small"),
+                "days_left": st.column_config.NumberColumn(
+                    label="Umur (hari)", width="small"),
             },
         )
 
@@ -230,8 +245,8 @@ with c1:
 with c2:
     if not event.selection.rows:
         st.info(
-            "Pilih satu permintaan di kolom kiri untuk melihat detailnya "
-            "dan daftar mahasiswa yang sesuai kebutuhan perusahaan."
+            "Pilih satu permintaan untuk melihat detailnya "
+            "dan rekomendasi mahasiswa yang sesuai."
         )
     else:
         idx = event.selection.rows[0]
@@ -288,18 +303,18 @@ with c2:
             )
             st.markdown(_attr("Program studi", prodi_text), unsafe_allow_html=True)
 
-        st.caption(f"Kriteria diperlukan: {tr_req['deskripsi_requirement']}")
+        st.caption(f"Kehalian yang dibutuhkan: {tr_req['deskripsi_requirement']}")
 
         st.divider()
 
         # -- Panel bobot slider (Section 4.9) --
         w1, w2 = st.columns([3, 1])
         with w1:
-            st.markdown("**Bobot komponen skor**")
+            st.markdown("**Bobot penilaian**")
             st.caption("Syarat wajib (mahasiswa tersedia dan semester minimum) bukan bobot. Kandidat yang tidak memenuhi syarat tidak ditampilkan.")
         with w2:
             if st.button(
-                "Reset ke bobot default",
+                "Kembalikan ke bobot awal",
                 use_container_width = True,
                 key = f"reset_weight_{tid}",
             ):
@@ -315,7 +330,7 @@ with c2:
         bw1, bw2, bw3, bw4, bw5, bw6 = st.columns(6)
         with bw1:
             bobot_tools = st.slider(
-                "Tools", 0, 100, metrics.default_weight_percent("tool_match"),
+                "Keahlian", 0, 100, metrics.default_weight_percent("tool_match"),
                 key="bobot_tool_match",
             )
         with bw2:
@@ -340,7 +355,7 @@ with c2:
             )
         with bw6:
             bobot_preferensi = st.slider(
-                "Preferensi", 0, 100,
+                "Preferensi penempatan", 0, 100,
                 metrics.default_weight_percent("placement_preference"),
                 key="bobot_placement_preference",
             )
@@ -364,8 +379,7 @@ with c2:
         if rec_result.empty:
             st.markdown(
                 H.callout(
-                    "Tidak ada kandidat eligible (Available, semester cukup) "
-                    "untuk permintaan ini.",
+                    "Tidak ada mahasiswa yang memenuhi syarat untuk permintaan ini.",
                     kind="watch",
                 ),
                 unsafe_allow_html=True,
@@ -383,7 +397,7 @@ with c2:
                 )
             with f2:
                 requested_programs = matching.requested_program_options(req)
-                program_filter_options = ["Semua prodi"] + requested_programs
+                program_filter_options = ["Semua program studi"] + requested_programs
                 selected_program_filter = st.selectbox(
                     "Filter program studi",
                     program_filter_options,
@@ -393,17 +407,19 @@ with c2:
             filtered_detail = detail_df.copy()
             if portfolio_filter == "Hanya yang ada portofolio":
                 filtered_detail = filtered_detail[filtered_detail["Punya Portofolio"]]
-            if selected_program_filter != "Semua prodi":
+            if selected_program_filter != "Semua program studi":
                 filtered_detail = filtered_detail[
                     filtered_detail["Program Studi"].astype(str).str.lower()
                     == str(selected_program_filter).lower()
                 ]
 
             top_n_label = st.selectbox(
-                "Tampilkan", ["Top 10", "Top 25", "Top 50", "Top 100", "Semua"],
+                "Tampilkan",
+                ["10 teratas", "25 teratas", "50 teratas", "100 teratas", "Semua"],
                 key="matching_top_n",
             )
-            n_map = {"Top 10": 10, "Top 25": 25, "Top 50": 50, "Top 100": 100, "Semua": None}
+            n_map = {"10 teratas": 10, "25 teratas": 25, "50 teratas": 50,
+                     "100 teratas": 100, "Semua": None}
             n_show = n_map[top_n_label]
             show_df = filtered_detail if n_show is None else filtered_detail.head(n_show)
 
@@ -453,7 +469,6 @@ with c2:
                 column_config={
                     "Pilih": st.column_config.CheckboxColumn(
                         "Pilih",
-                        help="Centang kandidat yang ingin disalin atau diekspor.",
                         default=False,
                     ),
                     "Skor akhir": st.column_config.NumberColumn(
@@ -463,11 +478,10 @@ with c2:
                     "IPK": st.column_config.NumberColumn("IPK", format="%.2f"),
                     "Rincian skor": st.column_config.TextColumn(
                         "Rincian skor", width="large",
-                        help="Bagaimana skor terbentuk per komponen.",
                     ),
                     "Proses lain": st.column_config.CheckboxColumn(
                         "Proses lain",
-                        help="Kandidat sedang berada di request lain yang masih aktif.",
+                        help="Kandidat sedang mengikuti permintaan lain yang masih aktif.",
                     ),
                     "CV": st.column_config.TextColumn(
                         "CV", width="small",
@@ -488,7 +502,7 @@ with c2:
             candidates_with_other = filtered_detail[filtered_detail["Jumlah Request Lain"] > 0]
             if not candidates_with_other.empty:
                 with st.expander(
-                    f"Lihat request lain milik kandidat ({len(candidates_with_other)} kandidat punya proses lain)"
+                    f"Lihat permintaan lain yang diikuti kandidat ({len(candidates_with_other)} kandidat)"
                 ):
                     other_id_col = matching.candidate_id_column(candidates_with_other)
                     name_lookup = dict(zip(
@@ -504,7 +518,7 @@ with c2:
                     )
                     other_reqs = engine.other_requests(picked_nim, exclude_tid=tid)
                     if not other_reqs:
-                        st.caption("Tidak ada request lain untuk kandidat ini.")
+                        st.caption("Tidak ada permintaan lain untuk kandidat ini.")
                     else:
                         st.markdown(
                             H.read_only_table(
@@ -532,8 +546,8 @@ with c2:
             ].astype(str).tolist()
 
             st.markdown(
-                f"**{len(nim_list)} dari {tr_req['headcount']} dipilih, "
-                f"kebutuhan {tr_req['headcount']} orang**"
+                f"**{len(nim_list)} dari {tr_req['headcount']} dipilih."
+
             )
 
             act1, act2, act3 = st.columns([1.2, 1, 1])
@@ -567,4 +581,3 @@ with c2:
 
             if st.session_state.get(f"show_nim_{tid}") and nim_list:
                 st.code("\n".join(nim_list), language=None)
-                st.caption("Salin daftar NIM di atas ke sistem CDC.")

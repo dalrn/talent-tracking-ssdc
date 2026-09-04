@@ -98,26 +98,26 @@ n_queue = (
 k1, k2, k3, k4 = st.columns(4)
 with k1:
     st.markdown(
-        H.kpi_card("Ghosting aktif", H._fmt_id(n_ghosting),
-                   "proses menunggu, perlu tindakan", accent=WARNA["crit"]),
+        H.kpi_card("Ghosting", H._fmt_id(n_ghosting),
+                   "perusahaan/mahasiswa belum menjawab", accent=WARNA["crit"]),
         unsafe_allow_html=True,
     )
 with k2:
     st.markdown(
-        H.kpi_card("Proses antre tindak lanjut", H._fmt_id(n_queue),
-                   "total 4 segmen tunggakan, tanpa Eligible", accent=WARNA["warn"]),
+        H.kpi_card("Proses berjalan", H._fmt_id(n_queue),
+                   "sudah dikirim, menunggu keputusan", accent=WARNA["warn"]),
         unsafe_allow_html=True,
     )
 with k3:
     st.markdown(
-        H.kpi_card("Permintaan belum digarap", H._fmt_id(n_draft),
-                   "status Draft, belum dikirim", accent=WARNA["warn"]),
+        H.kpi_card("Permintaan belum diproses", H._fmt_id(n_draft),
+                   "kandidat mahasiswa belum dikirim", accent=WARNA["warn"]),
         unsafe_allow_html=True,
     )
 with k4:
     st.markdown(
         H.kpi_card("Mahasiswa ditempatkan", H._fmt_id(n_placed_student),
-                   "hasil positif sejauh ini", accent=WARNA["ok"]),
+                   "berhasil ditempatkan sejauh ini", accent=WARNA["ok"]),
         unsafe_allow_html=True,
     )
 
@@ -128,7 +128,7 @@ with k4:
 # not throwaway. Clicking a segment filters the queue below.
 # ===========================================================================
 
-_section_title("Pilih segmen")
+_section_title("Pilih kategori")
 
 # Reverse map: a funnel stage (progress_student) to its Beranda segment. Built
 # from BERANDA_SEGMEN_PROGRESS so the two never drift apart.
@@ -303,7 +303,7 @@ def _render_queue():
     if not is_eligible:
         st.caption(
             "Kolom Diam (hari) dihitung sampai " + H.tanggal_id(data.ANCHOR.date())
-            + ", tanggal data dibekukan."
+            + "."
         )
     link_col = st.column_config.LinkColumn("Kontak", display_text="WhatsApp")
     return st.dataframe(
@@ -326,8 +326,8 @@ if not has_selection:
     event = _render_queue()
     sel_rows = _selected_rows(event)
     if not sel_rows:
-        st.caption("Klik satu baris di antrean untuk melihat profil dan semua "
-                   "prosesnya di panel detail.")
+        st.caption("Klik satu nama untuk melihat profil dan semua "
+                   "prosesnya.")
 
 if has_selection:
     left, right = st.columns([3, 2])
@@ -374,7 +374,7 @@ if sel_rows and right_ctx is not None:
 
             # CV status right under identity.
             cv_badge = H.badge(
-                "CV ada" if prof["CV"] == schema.CV_ADA else "tanpa CV",
+                "CV ada" if prof["CV"] == schema.CV_ADA else "belum ada CV",
                 "ok" if prof["CV"] == schema.CV_ADA else "warn",
             )
             st.markdown(cv_badge, unsafe_allow_html=True)
@@ -386,7 +386,7 @@ if sel_rows and right_ctx is not None:
                 perusahaan = ", ".join(sorted(set(placements["company"])))
                 st.markdown(
                     H.callout(
-                        "Sudah placed di " + perusahaan + ". Konfirmasi dulu "
+                        "Sudah ditempatkan di " + perusahaan + ". Konfirmasi dulu "
                         "sebelum follow up, kemungkinan mahasiswa ini sudah "
                         "diterima di tempat lain.",
                         kind="warn", title="Perhatian",
@@ -402,7 +402,7 @@ if sel_rows and right_ctx is not None:
             ]].rename(columns={
                 "company": "Perusahaan", "position": "Posisi",
                 "progress_student": "Tahap", "rejection": "Status",
-                "last_update": "Update terakhir",
+                "last_update": "Pembaruan terakhir",
             })
             st.dataframe(proc, use_container_width=True, hide_index=True)
 
@@ -419,12 +419,12 @@ if sel_rows and right_ctx is not None:
                               use_container_width=True,
                               help="Nomor tidak tersedia")
             with a2:
-                if st.button("Tandai ditindak", key="tandai_" + nim,
+                if st.button("Tandai sudah ditangani", key="tandai_" + nim,
                              use_container_width=True):
                     st.session_state["ditindak"].add(nim)
 
             if nim in st.session_state["ditindak"]:
-                st.caption("Ditandai ditindak. Catatan: tidak tersimpan "
+                st.caption("Tidak tersimpan "
                            "permanen, hilang saat halaman dimuat ulang.")
 
 
@@ -432,9 +432,9 @@ if sel_rows and right_ctx is not None:
 # Footer. Keep the session-only caveat and the placement definition visible.
 # ===========================================================================
 
-st.markdown("---")
-st.caption(
-    "Segmen diurut dari yang paling mendesak, dan di dalam satu segmen diurut "
-    "dari yang paling lama tidak ada kabar. Tanda 'ditindak' hanya berlaku di "
-    "sesi ini, tidak tersimpan permanen."
-)
+# st.markdown("---")
+# st.caption(
+#     "Segmen diurut dari yang paling mendesak, dan di dalam satu segmen diurut "
+#     "dari yang paling lama tidak ada kabar. Tanda 'ditindak' hanya berlaku di "
+#     "sesi ini, tidak tersimpan permanen."
+# )
