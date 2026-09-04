@@ -385,8 +385,8 @@ if view == "Mahasiswa":
         # among companies that pass the sample size gate. to_dict() turns the row
         # into plain scalars so int()/round() aren't fed a pandas Scalar union.
         st.caption(
-            "Pita lebar berarti jumlah pengiriman masih sedikit, "
-            "sehingga urutannya belum bisa dipegang."
+            "Interval sangat lebar berarti jumlah pengiriman masih sedikit, "
+            "sehingga angka persentasenya belum bisa dipercaya."
         )
 
 

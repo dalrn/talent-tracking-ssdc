@@ -443,7 +443,7 @@ st.markdown(
     ),
     unsafe_allow_html=True,
 )
-st.caption("Menampilkan 25 baris teratas sesuai urutan.")
+st.caption("Menampilkan 25 baris teratas.")
 
 
 # ===========================================================================
@@ -495,8 +495,7 @@ st.markdown(
 
 _section_title("Ekspor")
 st.caption(
-    "Cetak halaman ini, atau simpan sebagai PDF lewat tujuan "
-    "“Save as PDF” di dialog cetak."
+    "Simpan analitik halaman ini sebagai PDF."
 )
 
 if st.button("Cetak", key="cetak"):
